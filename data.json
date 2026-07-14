@@ -1,0 +1,246 @@
+{
+  "config": {
+    "currency": "₹",
+    "monthlyBudget": 19800,
+    "budgets": {
+      "rent": 6500,
+      "food": 6000,
+      "travel": 1500,
+      "groceries": 1500,
+      "clothes": 1000,
+      "bills": 1500,
+      "luxuries": 1000,
+      "investments": 1250,
+      "health": 1000,
+      "education": 500,
+      "other": 800
+    }
+  },
+  "transactions": [
+    {
+      "id": 30,
+      "date": "2026-07-13",
+      "category": "other",
+      "amount": 60.0,
+      "note": "₹ tiffin",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 29,
+      "date": "2026-07-13",
+      "category": "health",
+      "amount": 1408.0,
+      "note": "₹ medicine traya",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 28,
+      "date": "2026-07-13",
+      "category": "other",
+      "amount": 350.0,
+      "note": "₹ traveling",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 27,
+      "date": "2026-07-13",
+      "category": "other",
+      "amount": 500.0,
+      "note": "₹ from baba",
+      "type": "income",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 26,
+      "date": "2026-07-13",
+      "category": "travel",
+      "amount": 1000.0,
+      "note": "₹ petrol",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 25,
+      "date": "2026-07-13",
+      "category": "other",
+      "amount": 1000.0,
+      "note": "₹ from baba",
+      "type": "income",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 24,
+      "date": "2026-07-13",
+      "category": "bills",
+      "amount": 159.0,
+      "note": "₹ water bottle",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 23,
+      "date": "2026-07-13",
+      "category": "other",
+      "amount": 936.0,
+      "note": "₹ fashion and perfume",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 21,
+      "date": "2026-07-13",
+      "category": "other",
+      "amount": 350.0,
+      "note": "₹ traveling",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 20,
+      "date": "2026-07-13",
+      "category": "other",
+      "amount": 500.0,
+      "note": "₹ from baba",
+      "type": "income",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 19,
+      "date": "2026-07-10",
+      "category": "other",
+      "amount": 3000.0,
+      "note": "get₹ from aai",
+      "type": "income",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 18,
+      "date": "2026-07-10",
+      "category": "other",
+      "amount": 324.0,
+      "note": "₹ grocery",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 17,
+      "date": "2026-07-10",
+      "category": "health",
+      "amount": 60.0,
+      "note": "₹ aaji medicine",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 16,
+      "date": "2026-07-10",
+      "category": "bills",
+      "amount": 300.0,
+      "note": "₹ tv recharge",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 15,
+      "date": "2026-07-10",
+      "category": "travel",
+      "amount": 1000.0,
+      "note": "₹ petrol",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 14,
+      "date": "2026-07-10",
+      "category": "other",
+      "amount": 1500.0,
+      "note": "₹ credited from baba",
+      "type": "income",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 9,
+      "date": "2026-07-09",
+      "category": "other",
+      "amount": 2750.0,
+      "note": "₹ mobile emi",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 8,
+      "date": "2026-07-09",
+      "category": "bills",
+      "amount": 4365.0,
+      "note": "₹ credit card bill",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 7,
+      "date": "2026-07-09",
+      "category": "other",
+      "amount": 350.0,
+      "note": "₹ bus travel",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 6,
+      "date": "2026-07-09",
+      "category": "other",
+      "amount": 1250.0,
+      "note": "₹ investment",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 5,
+      "date": "2026-07-09",
+      "category": "other",
+      "amount": 350.0,
+      "note": "₹ food",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 4,
+      "date": "2026-07-09",
+      "category": "travel",
+      "amount": 250.0,
+      "note": "₹ petrol",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 3,
+      "date": "2026-07-09",
+      "category": "bills",
+      "amount": 306.0,
+      "note": "₹ light bill",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 2,
+      "date": "2026-07-09",
+      "category": "other",
+      "amount": 19800.0,
+      "note": "i salary of₹",
+      "type": "income",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 1,
+      "date": "2026-07-09",
+      "category": "rent",
+      "amount": 6500.0,
+      "note": "₹ rent",
+      "type": "expense",
+      "chat_id": 1082749361
+    }
+  ]
+}

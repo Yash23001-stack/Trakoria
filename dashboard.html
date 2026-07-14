@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link href="https://fonts.googleapis.com/css2?family=Ek+Mukta:wght@300;400;700&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <title>Terminal Ledger // Live Offline Dashboard</title>
+    <style>
+        :root {
+            --bg-base: #000000;          /* True black background */
+            --bg-surface: #0a0a0a;       /* Deep matte black for cards */
+            --bg-card: #141414;          /* Soft border highlight panels */
+            --text-primary: #ffffff;     /* Stark crisp white */
+            --text-muted: #666666;       /* Clean industrial gray */
+            --accent-green: #ffffff;     /* Nothing style standard metrics */
+            --accent-blue: #eeeeee;      /* Subdued structural indicators */
+            --accent-red: #ff0000;       /* The iconic Nothing OS red accent point */
+            --accent-orange: #333333;    /* Muted target lines */
+            --border-color: #222222;     /* Thin mechanical grid lines */
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Ek Mukta', Calibri, sans-serif; }
+        body { background-color: var(--bg-base); color: var(--text-primary); padding: 2rem; letter-spacing: -0.5px; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2rem; }
+        
+        /* Nothing OS typography layout */
+        h1 { font-size: 1.3rem; font-weight: normal; letter-spacing: 1px; color: var(--text-primary); text-transform: uppercase; }
+        select { background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color); padding: 0.5rem 1rem; border-radius: 0; text-transform: uppercase; font-size: 0.8rem; }
+        
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        
+        .card { background-color: var(--bg-surface); border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 0px; position: relative; }
+        .card h2 { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 1.25rem; letter-spacing: 1px; }
+        
+        .huge-metrics { font-size: 2.2rem; font-weight: normal; color: var(--text-primary); margin: 0.25rem 0; letter-spacing: -1px; }
+        
+        /* Monochromatic burn indicator strip */
+        .burn-bar-container { background: var(--bg-card); height: 4px; border-radius: 0px; overflow: hidden; margin-top: 1rem; }
+        .burn-bar-fill { height: 100%; width: 0%; transition: width 0.4s ease; }
+        
+        .ledger-row { display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color); font-size: 0.8rem; }
+        .ledger-row:last-child { border-bottom: none; }
+        
+        .badge { font-weight: normal; padding: 2px 6px; border-radius: 0px; font-size: 0.7rem; text-transform: uppercase; border: 1px solid transparent; }
+        .badge-expense { background: transparent; color: var(--text-primary); border-color: var(--border-color); }
+        .badge-income { background: var(--text-primary); color: var(--bg-base); }
+        
+        .insight-box { font-size: 0.8rem; line-height: 1.6; color: var(--text-primary); }
+        .insight-item { margin-bottom: 0.75rem; padding-left: 1rem; border-left: 1px solid var(--text-primary); }
+        svg { background: transparent; overflow: visible; }
+    </style>
+
+    <script src="data.js" onerror="loadFallbackData()"></script>
+    <script>
+        function loadFallbackData() {
+            console.warn("Local data.js script missing! Loading sandbox demonstration configurations.");
+            window.EXPENSE_CONFIG = {
+                currency: "₹", monthlyBudget: 60000,
+                budgets: { food: 15000, travel: 6000, luxuries: 10000, groceries: 8000, bills: 5000 }
+            };
+            window.EXPENSE_DATA = [
+                { date: "2026-07-01", category: "other", amount: 75000, note: "Monthly Base Salary", type: "income" },
+                { date: "2026-07-01", category: "food", amount: 1450, note: "Zomato Weekend Feast", type: "expense" },
+                { date: "2026-07-02", category: "travel", amount: 850, note: "Ola Outstation Fuel", type: "expense" },
+                { date: "2026-07-03", category: "luxuries", amount: 4500, note: "Logitech Keyboard Purchase", type: "expense" },
+                { date: "2026-07-04", category: "food", amount: 620, note: "Swiggy Office lunch", type: "expense" },
+                { date: "2026-06-15", category: "food", amount: 12000, note: "Prior Month Aggregate Food", type: "expense" },
+                { date: "2026-06-20", category: "luxuries", amount: 15000, note: "Prior Month Aggregate Luxuries", type: "expense" }
+            ];
+        }
+    </script>
+</head>
+<body>
+
+    <header>
+        <h1>💵 TERMINAL_LEDGER // OFFLINE_ENGINE</h1>
+        <div>
+            <select id="monthSelector" onchange="renderDashboard()"></select>
+        </div>
+    </header>
+
+    <div class="grid-3">
+        <div class="card">
+            <h2>Monthly Run Rate</h2>
+            <div id="metricSpend" class="huge-metrics">₹0</div>
+            <div id="metricBudgetSub" style="font-size:0.8rem; color:var(--text-muted);">Target: ₹0</div>
+            <div class="burn-bar-container"><div id="burnBar" class="burn-bar-fill"></div></div>
+        </div>
+        <div class="card">
+            <h2>Velocity Projection</h2>
+            <div id="metricPace" class="huge-metrics">₹0</div>
+            <div id="metricPaceSub" style="font-size:0.8rem; color:var(--text-muted);">Paced Limit</div>
+        </div>
+        <div class="card">
+            <h2>Discretionary Pressure</h2>
+            <div id="metricDiscretionary" class="huge-metrics">0%</div>
+            <div style="font-size:0.8rem; color:var(--text-muted);">Food + Luxuries + Clothes</div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="card">
+            <h2>Allocation Share</h2>
+            <div style="display:flex; align-items:center; justify-content:space-around; min-height:220px;">
+                <div id="donutContainer"></div>
+                <div id="donutLegend" style="width:45%; font-size:0.75rem;"></div>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Daily Cumulative Burn Curve</h2>
+            <div id="curveContainer" style="min-height:220px; display:flex; align-items:center; justify-content:center;"></div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="card">
+            <h2>Category Cap Matrix</h2>
+            <div id="categoryCapsContainer" style="display:flex; flex-direction:column; gap:0.75rem; margin-top:0.5rem;"></div>
+        </div>
+        <div class="card">
+            <h2>Analytical Insights</h2>
+            <div id="insightsContainer" class="insight-box"></div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1.5rem;">
+        <h2>Historical Velocity (6 Months)</h2>
+        <div id="historyContainer" style="min-height:180px; display:flex; align-items:center; justify-content:center; padding-top:1rem;"></div>
+    </div>
+
+    <div class="card">
+        <h2>Chronological Stream Ledger</h2>
+        <div id="ledgerContainer" style="max-height:400px; overflow-y:auto; margin-top:0.5rem;"></div>
+    </div>
+
+    <script>
+        function formatIndianCurrency(num) {
+            const symbol = window.EXPENSE_CONFIG.currency || "₹";
+            let x = Math.round(num).toString();
+            let lastThree = x.substring(x.length - 3);
+            let otherBits = x.substring(0, x.length - 3);
+            if(otherBits !== '') lastThree = ',' + lastThree;
+            let res = otherBits.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + lastThree;
+            return symbol + res;
+        }
+
+        function bootstrapSelector() {
+            const selector = document.getElementById("monthSelector");
+            const monthsSet = new Set();
+            
+            const now = new Date();
+            const currentStr = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2, '0');
+            monthsSet.add(currentStr);
+
+            window.EXPENSE_DATA.forEach(t => {
+                if(t.date) { monthsSet.add(t.date.substring(0, 7)); }
+            });
+
+            const sortedMonths = Array.from(monthsSet).sort().reverse();
+            selector.innerHTML = "";
+            sortedMonths.forEach(m => {
+                const opt = document.createElement("option");
+                opt.value = m;
+                const [y, mm] = m.split("-");
+                const dateObj = new Date(y, parseInt(mm)-1, 1);
+                opt.innerText = dateObj.toLocaleString('default', { month: 'short', year: 'numeric' }).toUpperCase();
+                selector.appendChild(opt);
+            });
+        }
+
+        function renderDashboard() {
+            const activeMonth = document.getElementById("monthSelector").value;
+            const config = window.EXPENSE_CONFIG;
+            const data = window.EXPENSE_DATA;
+
+            const currentTx = data.filter(t => t.date && t.date.substring(0, 7) === activeMonth);
+            const totalSpent = currentTx.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+
+            document.getElementById("metricSpend").innerText = formatIndianCurrency(totalSpent);
+            document.getElementById("metricBudgetSub").innerText = "Target Cap: " + formatIndianCurrency(config.monthlyBudget);
+            
+            const burnPct = Math.min((totalSpent / config.monthlyBudget) * 100, 100);
+            const barFill = document.getElementById("burnBar");
+            barFill.style.width = burnPct + "%";
+            barFill.style.backgroundColor = totalSpent > config.monthlyBudget ? "var(--accent-red)" : "var(--accent-green)";
+
+            const [yr, mn] = activeMonth.split("-");
+            const totalDays = new Date(yr, mn, 0).getDate();
+            const today = new Date();
+            let currentDayCount = today.getDate();
+            if(today.getFullYear()+"-"+String(today.getMonth()+1).padStart(2,'0') !== activeMonth) {
+                currentDayCount = totalDays; 
+            }
+            const projectedPace = (totalSpent / currentDayCount) * totalDays;
+            document.getElementById("metricPace").innerText = formatIndianCurrency(projectedPace);
+            document.getElementById("metricPaceSub").innerText = "Paced projection for " + totalDays + " full cycle days";
+
+            const discCategories = ["food", "luxuries", "clothes"];
+            const discSpend = currentTx.filter(t => t.type === 'expense' && discCategories.includes(t.category)).reduce((sum, t) => sum + t.amount, 0);
+            const discPct = totalSpent > 0 ? ((discSpend / totalSpent) * 100).toFixed(0) : 0;
+            document.getElementById("metricDiscretionary").innerText = discPct + "%";
+
+            const catTotals = {};
+            currentTx.filter(t => t.type === 'expense').forEach(t => {
+                catTotals[t.category] = (catTotals[t.category] || 0) + t.amount;
+            });
+
+            const donutContainer = document.getElementById("donutContainer");
+            const donutLegend = document.getElementById("donutLegend");
+            donutContainer.innerHTML = ""; donutLegend.innerHTML = "";
+            
+            let donutSvg = `<svg width="160" height="160" viewBox="0 0 42 42">
+                <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--bg-card)" stroke-width="5"></circle>`;
+            
+            let accumulatedPercentage = 0;
+            const colors = ["#ffffff", "#666666", "#333333", "#aaaaaa", "#dddddd"];
+            let colorIdx = 0;
+
+            const sortedCatEntries = Object.entries(catTotals).sort((a,b) => b[1] - a[1]);
+
+            sortedCatEntries.forEach(([cat, val]) => {
+                const pct = (val / totalSpent) * 100;
+                const strokeDashArray = `${pct} ${100 - pct}`;
+                const strokeDashOffset = 100 - accumulatedPercentage + 25; 
+                const activeColor = colors[colorIdx % colors.length];
+
+                donutSvg += `<circle cx="21" cy="21" r="15.915" fill="transparent" stroke="${activeColor}" stroke-width="5.2" stroke-dasharray="${strokeDashArray}" stroke-dashoffset="${strokeDashOffset}"></circle>`;
+                
+                donutLegend.innerHTML += `<div style="display:flex; align-items:center; margin-bottom:4px;">
+                    <span style="display:inline-block; width:10px; height:10px; background:${activeColor}; margin-right:6px;"></span>
+                    <span style="text-transform:capitalize; flex-grow:1;">${cat}</span>
+                    <span style="font-weight:bold; margin-left:4px;">${pct.toFixed(0)}%</span>
+                </div>`;
+
+                accumulatedPercentage += pct;
+                colorIdx++;
+            });
+            donutSvg += `</svg>`;
+            donutContainer.innerHTML = totalSpent > 0 ? donutSvg : `<div style="color:var(--text-muted); font-size:0.8rem;">No Outbound Entries</div>`;
+
+            const curveContainer = document.getElementById("curveContainer");
+            curveContainer.innerHTML = "";
+            
+            const dailyRollups = Array(totalDays).fill(0);
+            currentTx.filter(t => t.type === 'expense').forEach(t => {
+                const dayNum = parseInt(t.date.split("-")[2]);
+                if(dayNum <= totalDays) dailyRollups[dayNum - 1] += t.amount;
+            });
+
+            let runningSum = 0;
+            const cumulativePoints = dailyRollups.map(dayAmt => {
+                runningSum += dayAmt;
+                return runningSum;
+            });
+
+            if(totalSpent > 0) {
+                let lineSvg = `<svg width="450" height="180" viewBox="0 0 450 180">`;
+                lineSvg += `<line x1="40" y1="10" x2="430" y2="10" stroke="var(--border-color)" stroke-dasharray="2,2"/>`;
+                lineSvg += `<line x1="40" y1="150" x2="430" y2="150" stroke="var(--border-color)"/>`;
+                
+                const maxChartVal = Math.max(config.monthlyBudget, runningSum) * 1.1;
+                const budgetY = 150 - (config.monthlyBudget / maxChartVal) * 140;
+                lineSvg += `<line x1="40" y1="${budgetY}" x2="430" y2="${budgetY}" stroke="var(--accent-orange)" stroke-width="1.5" stroke-dasharray="4,4"/>`;
+                
+                let pathPoints = "";
+                for(let i=0; i<currentDayCount; i++) {
+                    const x = 40 + (i / (totalDays - 1)) * 390;
+                    const y = 150 - (cumulativePoints[i] / maxChartVal) * 140;
+                    pathPoints += `${x},${y} `;
+                }
+                lineSvg += `<polyline fill="none" stroke="var(--accent-blue)" stroke-width="2.5" points="${pathPoints.trim()}"/>`;
+                
+                lineSvg += `<text x="35" y="155" fill="var(--text-muted)" font-size="9" text-anchor="end">0</text>`;
+                lineSvg += `<text x="35" y="${budgetY+3}" fill="var(--accent-orange)" font-size="9" text-anchor="end">BUDGET</text>`;
+                lineSvg += `<text x="40" y="165" fill="var(--text-muted)" font-size="9">Day 1</text>`;
+                lineSvg += `<text x="430" y="165" fill="var(--text-muted)" font-size="9" text-anchor="end">Day ${totalDays}</text>`;
+                lineSvg += `</svg>`;
+                curveContainer.innerHTML = lineSvg;
+            } else {
+                curveContainer.innerHTML = `<div style="color:var(--text-muted); font-size:0.8rem;">Insufficient Data Range</div>`;
+            }
+
+            const capsBox = document.getElementById("categoryCapsContainer");
+            capsBox.innerHTML = "";
+            Object.entries(config.budgets).forEach(([cat, capLimit]) => {
+                const spentAmt = catTotals[cat] || 0;
+                const capPct = Math.min((spentAmt / capLimit) * 100, 100);
+                const capColor = spentAmt > capLimit ? "var(--accent-red)" : "var(--accent-blue)";
+                
+                capsBox.innerHTML += `<div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:2px;">
+                        <span style="text-transform:capitalize; font-weight:bold;">${cat}</span>
+                        <span style="color:var(--text-muted);">${formatIndianCurrency(spentAmt)} / ${formatIndianCurrency(capLimit)}</span>
+                    </div>
+                    <div style="background:var(--bg-card); height:6px; border-radius:2px; overflow:hidden;">
+                        <div style="width:${capPct}%; background:${capColor}; height:100%;"></div>
+                    </div>
+                </div>`;
+            });
+
+            const historyContainer = document.getElementById("historyContainer");
+            historyContainer.innerHTML = "";
+            const historicalMonths = [];
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(yr, parseInt(mn) - 1 - i, 1);
+                if(!isNaN(d.getTime())) {
+                    historicalMonths.push(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0'));
+                }
+            }
+            
+            let histSvg = `<svg width="500" height="140" viewBox="0 0 500 140">`;
+            let maxHistSpend = 10000;
+            const monthSpends = historicalMonths.map(mStr => {
+                const mSpend = data.filter(t => t.date && t.date.substring(0,7) === mStr && t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+                if (mSpend > maxHistSpend) maxHistSpend = mSpend;
+                return { label: mStr, val: mSpend };
+            });
+
+            monthSpends.forEach((mObj, idx) => {
+                const barW = 40;
+                const space = 35;
+                const x = 45 + idx * (barW + space);
+                const barH = (mObj.val / maxHistSpend) * 90;
+                const y = 110 - barH;
+                const barColor = mObj.label === activeMonth ? "var(--accent-green)" : "var(--bg-card)";
+                const strokeColor = mObj.label === activeMonth ? "var(--accent-green)" : "var(--border-color)";
+
+                histSvg += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${barColor}" stroke="${strokeColor}" stroke-width="1"/>`;
+                histSvg += `<text x="${x + barW/2}" y="${y - 6}" fill="var(--text-primary)" font-size="8" text-anchor="middle">${formatIndianCurrency(mObj.val)}</text>`;
+                const [yPart, mPart] = mObj.label.split("-");
+                const lblStr = new Date(yPart, parseInt(mPart)-1, 1).toLocaleString('default', { month: 'short' }).toUpperCase();
+                histSvg += `<text x="${x + barW/2}" y="126" fill="var(--text-muted)" font-size="9" text-anchor="middle">${lblStr}</text>`;
+            });
+            histSvg += `<line x1="20" y1="110" x2="480" y2="110" stroke="var(--border-color)"/>\n</svg>`;
+            historyContainer.innerHTML = histSvg;
+
+            const insightsBox = document.getElementById("insightsContainer");
+            insightsBox.innerHTML = "";
+            
+            if(totalSpent > 0) {
+                if(sortedCatEntries.length > 0) {
+                    const [topCat, topVal] = sortedCatEntries[0];
+                    const optimizedSavingsYearly = topVal * 0.20 * 12;
+                    insightsBox.innerHTML += `<div class="insight-item">Your largest spending category is <b>${topCat.toUpperCase()}</b> at ${formatIndianCurrency(topVal)}. Trimming this single category by 20% would save <b>${formatIndianCurrency(optimizedSavingsYearly)}</b> annually.</div>`;
+                }
+                insightsBox.innerHTML += `<div class="insight-item">Discretionary purchases account for <b>${discPct}%</b> of your total outflows this month.</div>`;
+                
+                const orderCount = currentTx.filter(t => ["food","swiggy","zomato"].includes(t.category) || t.note.toLowerCase().includes("swiggy") || t.note.toLowerCase().includes("zomato")).length;
+                if(orderCount > 0) {
+                    insightsBox.innerHTML += `<div class="insight-item">You initiated <b>${orderCount} food service transactions</b> during this tracked month.</div>`;
+                }
+                let overCapsCount = 0;
+                Object.entries(config.budgets).forEach(([c, limit]) => {
+                    if((catTotals[c] || 0) > limit) overCapsCount++;
+                });
+                if(overCapsCount > 0) {
+                    insightsBox.innerHTML += `<div class="insight-item" style="border-left-color: var(--accent-red); color: var(--accent-red);">⚠️ Budget exception breach detected across <b>${overCapsCount} distinct categories</b>.</div>`;
+                }
+                if(projectedPace <= config.monthlyBudget) {
+                    insightsBox.innerHTML += `<div class="insight-item" style="border-left-color: var(--accent-green);">✨ Safe Burn: Your velocity puts you on track to finish <b>below</b> your budget target.</div>`;
+                } else {
+                    insightsBox.innerHTML += `<div class="insight-item" style="border-left-color: var(--accent-red);">🚨 Burn Warning: Current spending velocity will breach your monthly target by <b>${formatIndianCurrency(projectedPace - config.monthlyBudget)}</b>.</div>`;
+                }
+            } else {
+                insightsBox.innerHTML = "No transactions logged in this calendar scope.";
+            }
+
+            const ledgerBox = document.getElementById("ledgerContainer");
+            ledgerBox.innerHTML = "";
+            if(currentTx.length === 0) {
+                ledgerBox.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-muted); font-size:0.8rem;">No transaction data lines found</div>`;
+            } else {
+                currentTx.forEach(t => {
+                    const badgeClass = t.type === 'income' ? 'badge-income' : 'badge-expense';
+                    ledgerBox.innerHTML += `<div class="ledger-row">
+                        <span style="color:var(--text-muted); width:90px;">${t.date}</span>
+                        <span class="badge ${badgeClass}" style="width:90px; text-align:center; text-transform:uppercase;">${t.category}</span>
+                        <span style="flex-grow:1; margin-left:15px; color:var(--text-primary); text-overflow:ellipsis; white-space:nowrap; overflow:hidden;">${t.note}</span>
+                        <span style="font-weight:bold; margin-left:10px; color:${t.type==='income'?'var(--accent-green)':'var(--text-primary)'}">${t.type==='income'?'+':'-'}${formatIndianCurrency(t.amount)}</span>
+                    </div>`;
+                });
+            }
+        }
+
+        window.addEventListener("DOMContentLoaded", () => {
+            bootstrapSelector();
+            renderDashboard();
+        });
+    </script>
+</body>
+</html>

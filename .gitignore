@@ -1,0 +1,31 @@
+# React
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Database
+*.db
+*.sqlite3
+
+# Environment
+.env
+.env.*
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# OS
+Thumbs.db
+.DS_Store

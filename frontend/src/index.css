@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+/* Smooth font adjustments */
+body {
+  background-color: #000000;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar matching Nothing OS aesthetic */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+  background: #222222;
+}
