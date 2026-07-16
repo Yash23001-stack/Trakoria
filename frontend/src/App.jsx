@@ -117,8 +117,8 @@ export default function App() {
           {/* Subtle aesthetic background scanline */}
           <div className="absolute top-0 left-0 w-full h-[2px] bg-white/10 animate-[scan_4s_linear_infinite]"></div>
           
-          <h1 className="text-2xl tracking-[0.2em] uppercase mb-1 font-bold">LedgerOS</h1>
-          <p className="text-[10px] text-zinc-400 mb-8 tracking-widest uppercase">Offline Financial Operating System</p>
+          <h1 className="text-2xl tracking-[0.2em] uppercase mb-1 font-bold">Trakoria</h1>
+          <p className="text-[10px] text-zinc-400 mb-8 tracking-widest uppercase">Track Money. Own Your Data.</p>
           
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <input 
@@ -131,7 +131,7 @@ export default function App() {
             />
             {loginError && <div className="text-red-500 text-[10px] uppercase text-center">{loginError}</div>}
             <button type="submit" className="bg-white text-black font-bold uppercase text-xs tracking-widest py-3 mt-2 hover:bg-zinc-300 transition-colors">
-              Unlock Expense Tracer
+             UNLOCK TRAKORIA
             </button>
           </form>
         </div>

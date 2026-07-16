@@ -18,6 +18,69 @@
   },
   "transactions": [
     {
+      "id": 37,
+      "date": "2026-07-16",
+      "category": "other",
+      "amount": 40.0,
+      "note": "breakfast",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 36,
+      "date": "2026-07-16",
+      "category": "other",
+      "amount": 60.0,
+      "note": "food",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 35,
+      "date": "2026-07-16",
+      "category": "other",
+      "amount": 30.0,
+      "note": "tea",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 34,
+      "date": "2026-07-16",
+      "category": "other",
+      "amount": 100.0,
+      "note": "to soham",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 33,
+      "date": "2026-07-14",
+      "category": "health",
+      "amount": 20.0,
+      "note": "₹ medicine",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 32,
+      "date": "2026-07-14",
+      "category": "other",
+      "amount": 100.0,
+      "note": "₹ to soham",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 31,
+      "date": "2026-07-14",
+      "category": "other",
+      "amount": 60.0,
+      "note": "₹ fruits",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
       "id": 30,
       "date": "2026-07-13",
       "category": "other",

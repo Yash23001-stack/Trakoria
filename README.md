@@ -1,388 +1,271 @@
-#  Personal Expense Tracer
+# 🖥️ LedgerOS
 
-> **A privacy-first, offline personal finance tracker built with FastAPI, React, and SQLite.**
+> ### Offline Financial Operating System
+>
+> **Privacy First • Offline First • Terminal Inspired • Local SQLite Storage**
 
-Personal Expense Tracer is a modern personal finance application designed around a **local-first philosophy**. It enables you to securely manage your income and expenses while ensuring your financial data never leaves your machine.
+LedgerOS is a terminal-inspired personal finance operating system built with **React**, **FastAPI**, and **SQLite**.
 
-Unlike cloud-based finance applications, Personal Expense Tracer stores everything locally using SQLite and serves a responsive dashboard through a lightweight FastAPI backend and a React frontend.
+Unlike traditional finance applications, LedgerOS never uploads your financial data to any cloud service. Everything runs locally on your machine, giving you complete ownership of your data while providing powerful analytics, budgeting, and financial insights.
+
+---
+
+## 📸 Preview
+
+### 🔒 Secure Lock Screen
+
+![Lock Screen](screenshots/lockscreen.png)
+
+---
+
+### 📊 Dashboard
+
+![Dashboard](screenshots/dashboard.png)
+
+---
+
+### 📅 Calendar Heatmap
+
+![Calendar](screenshots/calendar.png)
+
+---
+
+### 📈 Analytics
+
+![Analytics](screenshots/analytics.png)
 
 ---
 
 # ✨ Features
 
-## 🔒 Privacy First
-
-* 100% offline operation
-* No cloud databases
-* No third-party analytics
-* No subscriptions
-* Your data remains on your own computer
-
----
-
-## 📊 Interactive Dashboard
-
-* Real-time financial overview
-* Income vs Expense tracking
-* Budget utilization
-* Monthly spending summary
-* Category-wise analytics
-* Burn-rate monitoring
-* Responsive desktop and mobile interface
-
----
-
-## ⚡ Fast & Lightweight
-
-* SQLite database
-* FastAPI backend
-* React + Vite frontend
-* Instant API responses
-* Minimal resource usage
-
----
-
-## 🔐 Secure Access
-
-* Local PIN authentication
-* Every API request is protected
-* PIN verification through FastAPI middleware
-* No online authentication providers
-
----
-
-## 📁 Data Export
-
-Export your financial ledger anytime.
-
-* CSV Export
-* Local database backup
-* Portable SQLite database
+- 🔒 PIN Protected Access
+- 💻 Terminal Inspired User Interface
+- 📊 Real-time Financial Dashboard
+- 📅 Interactive Calendar Heatmap
+- 📈 Daily Burn Rate Analytics
+- 💰 Budget Tracking
+- 🔥 Spending Streak Tracking
+- 📉 Category Allocation Charts
+- 📜 Transaction Timeline
+- 🤖 Telegram Expense Logging
+- 💾 SQLite Database Snapshots
+- 📤 Export to CSV
+- 📤 Export to JSON
+- ⚡ FastAPI Backend
+- 💾 Offline SQLite Storage
+- 🔐 Privacy First Architecture
 
 ---
 
 # 🏗️ Architecture
 
 ```text
-                User
-
-                  │
-                  ▼
-
-         React + Vite Dashboard
-
-                  │
-         HTTP Requests (x-pin)
-
-                  ▼
-
+                React + Vite
+                     │
+                     ▼
              FastAPI Backend
-
-                  │
-
-        PIN Verification Layer
-
-                  │
-
-                  ▼
-
+                     │
+                     ▼
               SQLite Database
-
-                  │
-
-                  ▼
-
-          Local File Storage
+                     ▲
+                     │
+          Telegram Expense Bot
 ```
 
 ---
 
-# ⚙️ Tech Stack
+# 🛠️ Tech Stack
 
-## Backend
-
-* Python 3.11+
-* FastAPI
-* SQLite
-
-## Frontend
-
-* React 18
-* Vite
-* Tailwind CSS
-* Recharts
-
-## Security
-
-* Custom PIN Authentication
-* FastAPI Dependency Injection
-* Protected API Routes
+| Layer | Technology |
+|--------|------------|
+| Frontend | React.js + Vite |
+| Styling | CSS + Tailwind CSS |
+| Backend | FastAPI |
+| Language | Python |
+| Database | SQLite |
+| Charts | Recharts |
+| Bot | Telegram Bot API |
 
 ---
 
 # 📂 Project Structure
 
-Personal Expense Tracer/
+```text
+LedgerOS/
 
-├── api.py                 # FastAPI routes
-├── db.py                  # SQLite database operations
-├── auth.py                # PIN verification
-├── config.json            # Local configuration
-├── expenses.db            # SQLite database
-├── requirements.txt
-│
 ├── frontend/
 │   ├── src/
-│   │   ├── components/
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   │
+│   ├── public/
 │   ├── package.json
 │   └── vite.config.js
 │
+├── api.py
+├── bot.py
+├── db.py
+├── parser.py
+├── export.py
+├── config.json
 ├── README.md
-└── LICENSE
+├── .gitignore
+└── .env.example
+```
 
 ---
 
-# 🚀 Getting Started
+# 🚀 Installation
 
-## Prerequisites
-
-Install the following before starting:
-
-* Python 3.11 or later
-* Node.js (LTS recommended)
-* npm
-
----
-
-# 1. Clone the Repository
+## 1️⃣ Clone Repository
 
 ```bash
-git clone https://github.com/your-username/personal-expense-tracer.git
+git clone https://github.com/Yash23001-stack/LedgerOS.git
 
-cd personal-expense-tracer
+cd LedgerOS
 ```
 
 ---
 
-# 2. Configure the Application
+## 2️⃣ Backend Setup
 
-Create a file named:
-
-```text
-config.json
-```
-
-Example:
-
-```json
-{
-  "pin": "1234",
-  "currency": "₹",
-  "monthlyBudget": 20000,
-  "budgets": {
-    "Food": 5000,
-    "Transport": 3000,
-    "Rent": 6500,
-    "Bills": 2000,
-    "Other": 3500
-  }
-}
-```
-
----
-
-# 3. Install Backend Dependencies
+Install Python dependencies
 
 ```bash
-python -m pip install fastapi "uvicorn[standard]"
+pip install fastapi
+pip install uvicorn
+pip install python-dotenv
+pip install python-telegram-bot
 ```
 
----
-
-# 4. Start the Backend
+Run the backend
 
 ```bash
-python -m uvicorn api:app --reload --host 0.0.0.0 --port 8000
-```
-
-Backend URL:
-
-```text
-http://localhost:8000
+uvicorn api:app --reload
 ```
 
 ---
 
-# 5. Install Frontend Dependencies
+## 3️⃣ Frontend Setup
 
 ```bash
 cd frontend
 
 npm install
+
+npm run dev
 ```
 
 ---
 
-# 6. Start the Frontend
+## 4️⃣ Open LedgerOS
 
-```bash
-npm run dev
 ```
-
-Frontend URL:
-
-```text
 http://localhost:5173
 ```
 
 ---
 
-# 🔐 Authentication
+# 🔐 Environment Variables
 
-Personal Expense Tracer uses a simple local PIN authentication mechanism.
+Create a `.env` file in the project root.
 
-Workflow:
-
-```text
-User enters PIN
-
-        │
-
-        ▼
-
-React sends x-pin header
-
-        │
-
-        ▼
-
-FastAPI verifies PIN
-
-        │
-
-        ▼
-
-Access Granted
-```
-
-Every protected endpoint requires the following request header:
-
-```http
-x-pin: 1234
+```env
+BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN
+APP_PIN=0000
 ```
 
 ---
 
-# 📊 Dashboard
+# 📤 Export Options
 
-The dashboard includes:
+LedgerOS supports
 
-* Current Balance
-* Monthly Income
-* Monthly Expenses
-* Budget Remaining
-* Category Breakdown
-* Expense Trends
-* Income vs Expense
-* Burn Rate
-* Recent Transactions
+- CSV Export
+- JSON Export
+- SQLite Database Snapshot
+
+All generated completely offline.
 
 ---
 
-# 📦 Database
+# 🤖 Telegram Integration
 
-Personal Expense Tracer stores all financial data in a local SQLite database.
+LedgerOS supports logging expenses directly from Telegram.
 
-Database file:
+Example:
 
-```text
-expenses.db
+```
+500 Tea
+
+1200 Petrol
+
+Salary 20000
 ```
 
-Typical transaction fields:
-
-| Field       | Description          |
-| ----------- | -------------------- |
-| id          | Transaction ID       |
-| amount      | Transaction amount   |
-| type        | Income or Expense    |
-| category    | Transaction category |
-| description | User description     |
-| timestamp   | Date and time        |
+The bot automatically categorizes and inserts the transaction into the local SQLite database.
 
 ---
 
-# 🔒 Security Philosophy
+# 🔒 Privacy First
 
-Personal Expense Tracer is designed with a **local-first security model**.
+LedgerOS follows one simple philosophy.
 
-* Data never leaves your machine.
-* No cloud storage.
-* No third-party authentication.
-* No external APIs required.
-* PIN-protected API endpoints.
-* SQLite database stored locally.
+✅ No Cloud
 
-> **Important:** If you plan to expose the application beyond your local network, implement HTTPS and a stronger authentication mechanism before deployment.
+✅ No Tracking
 
----
+✅ No Analytics
 
-# 📈 Roadmap
+✅ No Advertisements
 
-Planned features include:
+✅ No Subscription
 
-* [ ] Recurring transactions
-* [ ] Advanced search & filters
-* [ ] PDF reports
-* [ ] Excel export
-* [ ] Savings goals
-* [ ] Multiple wallets
-* [ ] Investment tracking
-* [ ] Desktop application (Tauri)
-* [ ] Progressive Web App (PWA)
-* [ ] Database encryption
-* [ ] Automatic local backups
+✅ No Data Collection
+
+Everything stays on **your own machine**.
 
 ---
 
-# 🤝 Contributing
+# 🛣️ Roadmap
 
-Contributions are welcome.
-
-1. Fork the repository.
-2. Create a feature branch.
-
-```bash
-git checkout -b feature/new-feature
-```
-
-3. Commit your changes.
-
-```bash
-git commit -m "Add new feature"
-```
-
-4. Push the branch.
-
-```bash
-git push origin feature/new-feature
-```
-
-5. Open a Pull Request.
+- [x] Offline Dashboard
+- [x] PIN Authentication
+- [x] Telegram Integration
+- [x] CSV Export
+- [x] JSON Export
+- [x] SQLite Snapshot
+- [x] Calendar Heatmap
+- [x] Burn Rate Analytics
+- [ ] Transaction Search
+- [ ] PDF Reports
+- [ ] Desktop Version (Tauri)
+- [ ] Multi Profile Support
+- [ ] Budget Templates
 
 ---
 
-# 📄 License
+# 🌟 Why LedgerOS?
 
-This project is licensed under the **MIT License**.
+Most finance applications rely on cloud storage and online accounts.
+
+LedgerOS takes a different approach.
+
+Instead of storing your financial history on someone else's servers, LedgerOS keeps everything on your own device.
+
+You own your data.
+
+Always.
 
 ---
 
 # 👨‍💻 Author
 
-**Yash Bhandare**
+**Yash Bhandari**
 
-**Personal Expense Tracer was built to demonstrate how modern personal finance software can be fast, secure, and completely private without relying on cloud infrastructure.**
+Built as a privacy-first personal finance operating system using React, FastAPI and SQLite.
+
+If you found this project interesting, consider giving it a ⭐ on GitHub.
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License.

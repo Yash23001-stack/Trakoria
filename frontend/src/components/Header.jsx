@@ -31,10 +31,10 @@ export default function Header({ pin, handleLogout }) {
        {/* LEFT SIDE: Brand & Subname */}
       <div className="flex flex-col">
         <h1 className="text-xl md:text-2xl tracking-[0.2em] uppercase font-bold text-white flex items-center gap-2">
-          <span className="text-green-500 animate-pulse"></span> LedgerOS
+          <span className="text-green-500 animate-pulse"></span> Trakoria
         </h1>
         <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">
-         Local Financial Workspace
+         Track Money. Own Your Data.
         </p>
       </div>
       </div>
