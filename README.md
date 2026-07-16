@@ -19,7 +19,7 @@ No data collection.
 
 **Everything stays on your machine.**
 
-<img src="screenshots/dashboard.png" width="95%">
+<img src="screenshots/lockscreen.png" width="95%">
 
 </div>
 
@@ -52,7 +52,7 @@ No data collection.
 ### Secure Lock Screen
 
 <p align="center">
-<img src="screenshots/lockscreen.png" width="90%">
+<img src="screenshots/dashboard.png" width="90%">
 </p>
 
 ---
