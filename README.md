@@ -1,72 +1,120 @@
-# 🖥️ LedgerOS
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
 
-> ### Offline Financial Operating System
->
-> **Privacy First • Offline First • Terminal Inspired • Local SQLite Storage**
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi)
 
-LedgerOS is a terminal-inspired personal finance operating system built with **React**, **FastAPI**, and **SQLite**.
+![Offline First](https://img.shields.io/badge/Offline-First-success)
+<div align="center">
 
-Unlike traditional finance applications, LedgerOS never uploads your financial data to any cloud service. Everything runs locally on your machine, giving you complete ownership of your data while providing powerful analytics, budgeting, and financial insights.
+#  Trakoria
 
----
+### **Track Money. Own Your Data.**
 
-## 📸 Preview
+**Privacy First • Offline First • Local Storage • Terminal Inspired**
 
-### 🔒 Secure Lock Screen
+A modern, offline-first personal finance workspace built with **React**, **FastAPI**, and **SQLite**.
 
-![Lock Screen](screenshots/lockscreen.png)
+No cloud.
+No subscriptions.
+No tracking.
 
----
-
-### 📊 Dashboard
-
-![Dashboard](screenshots/dashboard.png)
+Your financial data stays on **your own machine**.
 
 ---
 
-### 📅 Calendar Heatmap
+![Hero](screenshots/dashboard.png)
 
-![Calendar](screenshots/calendar.png)
-
----
-
-### 📈 Analytics
-
-![Analytics](screenshots/analytics.png)
+</div>
 
 ---
 
-# ✨ Features
+# Features
 
-- 🔒 PIN Protected Access
-- 💻 Terminal Inspired User Interface
-- 📊 Real-time Financial Dashboard
-- 📅 Interactive Calendar Heatmap
+- 🔒 PIN Protected Authentication
+- 💻 Terminal Inspired Interface
+- 📊 Interactive Financial Dashboard
 - 📈 Daily Burn Rate Analytics
+- 📅 Spending Calendar Heatmap
+- 📉 Category Allocation Charts
 - 💰 Budget Tracking
 - 🔥 Spending Streak Tracking
-- 📉 Category Allocation Charts
 - 📜 Transaction Timeline
 - 🤖 Telegram Expense Logging
-- 💾 SQLite Database Snapshots
-- 📤 Export to CSV
-- 📤 Export to JSON
-- ⚡ FastAPI Backend
-- 💾 Offline SQLite Storage
-- 🔐 Privacy First Architecture
+- 💾 SQLite Database
+- 📤 CSV Export
+- 📤 JSON Export
+- 💽 SQLite Snapshot Backup
+- ⚡ FastAPI REST API
+- 🌙 Fully Offline
+- 🔐 Privacy First
 
 ---
 
-# 🏗️ Architecture
+# 📸 Preview
+
+##  Secure Lock Screen
+
+<p align="center">
+<img src="screenshots/lockscreen.png" width="90%">
+</p>
+
+---
+
+##  Dashboard
+
+<p align="center">
+<img src="screenshots/dashboard.png" width="90%">
+</p>
+
+---
+
+##  Calendar Heatmap
+
+<p align="center">
+<img src="screenshots/calendar.png" width="90%">
+</p>
+
+---
+
+##  Analytics
+
+<p align="center">
+<img src="screenshots/analytics.png" width="90%">
+</p>
+
+---
+
+##  Data Operations
+
+<p align="center">
+<img src="screenshots/export.png" width="90%">
+</p>
+
+---
+
+#  Demo
+
+A short walkthrough of Trakoria.
+
+>  **Demo Video**
+
+```
+demo/demo.mp4
+```
+
+Watch a complete walkthrough of Trakoria.
+
+---
+
+#  Architecture
 
 ```text
                 React + Vite
                      │
                      ▼
-             FastAPI Backend
+              FastAPI Backend
                      │
                      ▼
-              SQLite Database
+               SQLite Database
                      ▲
                      │
           Telegram Expense Bot
@@ -74,12 +122,12 @@ Unlike traditional finance applications, LedgerOS never uploads your financial d
 
 ---
 
-# 🛠️ Tech Stack
+#  Tech Stack
 
 | Layer | Technology |
 |--------|------------|
 | Frontend | React.js + Vite |
-| Styling | CSS + Tailwind CSS |
+| Styling | CSS |
 | Backend | FastAPI |
 | Language | Python |
 | Database | SQLite |
@@ -88,16 +136,18 @@ Unlike traditional finance applications, LedgerOS never uploads your financial d
 
 ---
 
-# 📂 Project Structure
+#  Project Structure
 
-```text
-LedgerOS/
+
+Trakoria/
 
 ├── frontend/
 │   ├── src/
 │   ├── public/
 │   ├── package.json
 │   └── vite.config.js
+│
+├── screenshots/
 │
 ├── api.py
 ├── bot.py
@@ -112,30 +162,27 @@ LedgerOS/
 
 ---
 
-# 🚀 Installation
+# Installation
 
-## 1️⃣ Clone Repository
+## Clone Repository
 
 ```bash
-git clone https://github.com/Yash23001-stack/LedgerOS.git
+git clone https://github.com/Yash23001-stack/Trakoria.git
 
-cd LedgerOS
+cd Trakoria
 ```
 
 ---
 
-## 2️⃣ Backend Setup
+## Backend
 
-Install Python dependencies
+Install dependencies
 
 ```bash
-pip install fastapi
-pip install uvicorn
-pip install python-dotenv
-pip install python-telegram-bot
+pip install fastapi uvicorn python-dotenv python-telegram-bot
 ```
 
-Run the backend
+Run server
 
 ```bash
 uvicorn api:app --reload
@@ -143,7 +190,7 @@ uvicorn api:app --reload
 
 ---
 
-## 3️⃣ Frontend Setup
+## Frontend
 
 ```bash
 cd frontend
@@ -155,17 +202,17 @@ npm run dev
 
 ---
 
-## 4️⃣ Open LedgerOS
+## Open Application
 
 ```
-http://localhost:5173
+http://localhost:5175
 ```
 
 ---
 
-# 🔐 Environment Variables
+#  Environment Variables
 
-Create a `.env` file in the project root.
+Create a `.env` file.
 
 ```env
 BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN
@@ -174,23 +221,23 @@ APP_PIN=0000
 
 ---
 
-# 📤 Export Options
+#  Export Support
 
-LedgerOS supports
+Trakoria supports
 
 - CSV Export
 - JSON Export
 - SQLite Database Snapshot
 
-All generated completely offline.
+Everything is generated locally.
 
 ---
 
-# 🤖 Telegram Integration
+#  Telegram Integration
 
-LedgerOS supports logging expenses directly from Telegram.
+Log expenses directly from Telegram.
 
-Example:
+Example
 
 ```
 500 Tea
@@ -200,13 +247,13 @@ Example:
 Salary 20000
 ```
 
-The bot automatically categorizes and inserts the transaction into the local SQLite database.
+The bot parses the message and stores it directly into the local SQLite database.
 
 ---
 
-# 🔒 Privacy First
+#  Privacy First
 
-LedgerOS follows one simple philosophy.
+Trakoria follows one simple philosophy.
 
 ✅ No Cloud
 
@@ -222,50 +269,38 @@ LedgerOS follows one simple philosophy.
 
 Everything stays on **your own machine**.
 
----
-
-# 🛣️ Roadmap
-
-- [x] Offline Dashboard
-- [x] PIN Authentication
-- [x] Telegram Integration
-- [x] CSV Export
-- [x] JSON Export
-- [x] SQLite Snapshot
-- [x] Calendar Heatmap
-- [x] Burn Rate Analytics
-- [ ] Transaction Search
-- [ ] PDF Reports
-- [ ] Desktop Version (Tauri)
-- [ ] Multi Profile Support
-- [ ] Budget Templates
 
 ---
 
-# 🌟 Why LedgerOS?
+# Why Trakoria?
 
-Most finance applications rely on cloud storage and online accounts.
+Most personal finance applications rely on cloud storage and online accounts.
 
-LedgerOS takes a different approach.
+Trakoria takes a different approach.
 
-Instead of storing your financial history on someone else's servers, LedgerOS keeps everything on your own device.
+Your financial data belongs to **you**, not a server.
 
-You own your data.
+Whether you're tracking daily expenses, planning a monthly budget, or reviewing spending habits, everything remains private and available offline.
 
-Always.
-
----
-
-# 👨‍💻 Author
-
-**Yash Bhandari**
-
-Built as a privacy-first personal finance operating system using React, FastAPI and SQLite.
-
-If you found this project interesting, consider giving it a ⭐ on GitHub.
+**Track Money. Own Your Data.**
 
 ---
 
-## 📜 License
+# Author
 
-This project is licensed under the MIT License.
+### Yash Bhandare
+
+Built with ❤️ using
+
+- React
+- FastAPI
+- SQLite
+- Python
+
+If you found this project useful, consider giving it a ⭐.
+
+---
+
+#  License
+
+Licensed under the MIT License.
