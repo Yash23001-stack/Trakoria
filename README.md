@@ -93,9 +93,13 @@ No data collection.
 
 A quick walkthrough of Trakoria.
 
-📹 **Demo Video**
+ **Demo Video**
 
-[▶ Watch Demo](demo/demo.mp4)
+
+https://github.com/user-attachments/assets/7dfbeb45-3dba-4ac9-bbd1-e48d4603172a
+
+
+
 
 ---
 
