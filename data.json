@@ -18,6 +18,69 @@
   },
   "transactions": [
     {
+      "id": 45,
+      "date": "2026-07-20",
+      "category": "groceries",
+      "amount": 150.0,
+      "note": "instamart",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 44,
+      "date": "2026-07-20",
+      "category": "other",
+      "amount": 100.0,
+      "note": "eggs",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 42,
+      "date": "2026-07-20",
+      "category": "other",
+      "amount": 30.0,
+      "note": "tea",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 41,
+      "date": "2026-07-20",
+      "category": "other",
+      "amount": 70.0,
+      "note": "aloo paratha food",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 40,
+      "date": "2026-07-20",
+      "category": "other",
+      "amount": 110.0,
+      "note": "tava pulao",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 39,
+      "date": "2026-07-20",
+      "category": "travel",
+      "amount": 372.0,
+      "note": "petrol",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 38,
+      "date": "2026-07-20",
+      "category": "groceries",
+      "amount": 20.0,
+      "note": "₹ milk",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
       "id": 37,
       "date": "2026-07-16",
       "category": "other",
