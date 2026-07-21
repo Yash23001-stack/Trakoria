@@ -18,6 +18,42 @@
   },
   "transactions": [
     {
+      "id": 49,
+      "date": "2026-07-21",
+      "category": "other",
+      "amount": 140.0,
+      "note": "tiffin",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 48,
+      "date": "2026-07-21",
+      "category": "other",
+      "amount": 147.0,
+      "note": "prathamesh food",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 47,
+      "date": "2026-07-21",
+      "category": "groceries",
+      "amount": 20.0,
+      "note": "milk",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 46,
+      "date": "2026-07-21",
+      "category": "food",
+      "amount": 124.0,
+      "note": "swiggy",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
       "id": 45,
       "date": "2026-07-20",
       "category": "groceries",
