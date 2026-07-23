@@ -18,6 +18,33 @@
   },
   "transactions": [
     {
+      "id": 54,
+      "date": "2026-07-23",
+      "category": "groceries",
+      "amount": 30.0,
+      "note": "milk",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 53,
+      "date": "2026-07-23",
+      "category": "health",
+      "amount": 55.0,
+      "note": "medicine",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 50,
+      "date": "2026-07-23",
+      "category": "other",
+      "amount": 120.0,
+      "note": "sai food",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
       "id": 49,
       "date": "2026-07-21",
       "category": "other",
