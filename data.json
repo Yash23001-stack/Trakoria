@@ -18,6 +18,42 @@
   },
   "transactions": [
     {
+      "id": 58,
+      "date": "2026-07-25",
+      "category": "other",
+      "amount": 120.0,
+      "note": "sai",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 57,
+      "date": "2026-07-25",
+      "category": "groceries",
+      "amount": 25.0,
+      "note": "milk and coffee",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 56,
+      "date": "2026-07-25",
+      "category": "other",
+      "amount": 143.0,
+      "note": "biryani",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 55,
+      "date": "2026-07-25",
+      "category": "other",
+      "amount": 143.0,
+      "note": "biryani",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
       "id": 54,
       "date": "2026-07-23",
       "category": "groceries",
