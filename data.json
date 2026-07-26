@@ -18,6 +18,42 @@
   },
   "transactions": [
     {
+      "id": 62,
+      "date": "2026-07-26",
+      "category": "groceries",
+      "amount": 20.0,
+      "note": "milk",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 61,
+      "date": "2026-07-26",
+      "category": "other",
+      "amount": 35.0,
+      "note": "chips",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 60,
+      "date": "2026-07-26",
+      "category": "other",
+      "amount": 100.0,
+      "note": "tiffin",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 59,
+      "date": "2026-07-26",
+      "category": "other",
+      "amount": 25.0,
+      "note": "₹ lassi",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
       "id": 58,
       "date": "2026-07-25",
       "category": "other",
