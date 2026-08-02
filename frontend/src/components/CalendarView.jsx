@@ -1,11 +1,14 @@
 import React from 'react';
 
-export default function CalendarView({ txns, currency, setSelectedDate }) {
+export default function CalendarView({ txns, currency, setSelectedDate, selectedMonth }) {
   const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
   
-  // Calculate grid parameters
+  // 1. EXTRACT YEAR AND MONTH FROM STATE: Split "2026-7" into variables
+  const [selectedYearStr, selectedMonthStr] = selectedMonth.split('-');
+  const year = parseInt(selectedYearStr, 10);
+  const month = parseInt(selectedMonthStr, 10);
+  
+  // 2. DYNAMIC GRID MATH: Will now calculate correctly for ANY year/month combo
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 = Sunday, 1 = Monday, etc.
   
@@ -24,7 +27,9 @@ export default function CalendarView({ txns, currency, setSelectedDate }) {
   // Generate actual days
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-  const monthName = today.toLocaleString('default', { month: 'long' });
+  // Get the correct month name based on the selected month
+  const dateForName = new Date(year, month, 1);
+  const monthName = dateForName.toLocaleString('default', { month: 'long' });
 
   return (
     <div className="border border-zinc-900 bg-[#0a0a0a] p-4 mt-6">
@@ -46,7 +51,9 @@ export default function CalendarView({ txns, currency, setSelectedDate }) {
         
         {days.map(day => {
           const spent = expensesByDay[day];
-          const isToday = day === today.getDate();
+          
+          // 3. SAFEGUARD: Only highlight "today" if the dropdown month and year actually matches real-world today
+          const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
           
           // Format date to match your ledger filter (YYYY-MM-DD)
           const searchDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;

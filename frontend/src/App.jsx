@@ -13,6 +13,16 @@ export default function App() {
   const [config, setConfig] = useState({ currency: "₹", monthlyBudget: 19800, budgets: {} });
   const [selectedDate, setSelectedDate] = useState("");
   
+  // 1. UPDATED STATE: Now stores both Year and Month (e.g., "2026-7")
+  const [selectedMonth, setSelectedMonth] = useState(`${new Date().getFullYear()}-${new Date().getMonth()}`);
+  
+  // 2. UPDATED FILTER: Now explicitly checks that BOTH the year and month match the dropdown
+  const currentMonthTxns = txns.filter(t => {
+    const txnDate = new Date(t.date);
+    const txnMonthYear = `${txnDate.getFullYear()}-${txnDate.getMonth()}`;
+    return txnMonthYear === selectedMonth;
+  });
+  
   // Security Layer States
   const [loading, setLoading] = useState(true);
   const [pin, setPin] = useState(localStorage.getItem("ledger_pin") || "");
@@ -114,9 +124,6 @@ export default function App() {
           {/* Subtle aesthetic background scanline */}
           <div className="absolute top-0 left-0 w-full h-[2px] bg-white/10 animate-[scan_4s_linear_infinite]"></div>
           
-          {/* Subtle aesthetic background scanline */}
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-white/10 animate-[scan_4s_linear_infinite]"></div>
-          
           <h1 className="text-2xl tracking-[0.2em] uppercase mb-1 font-bold">Trakoria</h1>
           <p className="text-[10px] text-zinc-400 mb-8 tracking-widest uppercase">Track Money. Own Your Data.</p>
           
@@ -151,25 +158,34 @@ export default function App() {
         </div>
       )}
 
-      <Header pin={pin} handleLogout={handleLogout} />
+      {/* 3. UPDATED HEADER: Passing the selectedMonth states */}
+      <Header 
+        pin={pin} 
+        handleLogout={handleLogout} 
+        selectedMonth={selectedMonth} 
+        setSelectedMonth={setSelectedMonth} 
+      />
       
       {/* 4-COLUMN COMMAND CENTER LAYOUT */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         
         {/* MAIN MODULES (Takes up 3/4 of screen on desktop) */}
         <div className="xl:col-span-3 flex flex-col gap-6">
-          <MetricsGrid txns={txns} config={config} />
-          <ChartsGrid txns={txns} config={config} />
+          
+          {/* 4. UPDATED WIDGETS: All components now use 'currentMonthTxns' */}
+          <MetricsGrid txns={currentMonthTxns} config={config} />
+          <ChartsGrid txns={currentMonthTxns} config={config} />
           
           {/* THE CALENDAR HEATMAP */}
           <CalendarView 
-            txns={txns} 
+            txns={currentMonthTxns} 
             currency={config.currency} 
             setSelectedDate={setSelectedDate} 
+            selectedMonth={selectedMonth}
           />
 
           <LedgerStream 
-            txns={txns} 
+            txns={currentMonthTxns} 
             config={config} 
             selectedDate={selectedDate} 
             setSelectedDate={setSelectedDate} 
@@ -179,7 +195,7 @@ export default function App() {
 
         {/* RIGHT SIDEBAR: Live Activity & Bot Status */}
         <div className="xl:col-span-1">
-          <ActivitySidebar txns={txns} currency={config.currency} />
+          <ActivitySidebar txns={currentMonthTxns} currency={config.currency} />
         </div>
 
       </div>

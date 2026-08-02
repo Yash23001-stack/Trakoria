@@ -305,3 +305,56 @@ If you found this project useful, consider giving it a ⭐ on GitHub.
 ## License
 
 This project is licensed under the MIT License.
+
+```
+ExpenseTracker
+├─ api.py
+├─ bot.py
+├─ config.json
+├─ dashboard.html
+├─ data.js
+├─ data.json
+├─ db.py
+├─ demo
+│  └─ demo.mp4
+├─ export.py
+├─ frontend
+│  ├─ eslint.config.js
+│  ├─ index.html
+│  ├─ package-lock.json
+│  ├─ package.json
+│  ├─ postcss.config.js
+│  ├─ public
+│  │  ├─ favicon.svg
+│  │  └─ icons.svg
+│  ├─ src
+│  │  ├─ App.css
+│  │  ├─ App.jsx
+│  │  ├─ assets
+│  │  │  ├─ hero.png
+│  │  │  ├─ react.svg
+│  │  │  └─ vite.svg
+│  │  ├─ components
+│  │  │  ├─ ActivitySidebar.jsx
+│  │  │  ├─ AiInsights.jsx
+│  │  │  ├─ CalendarView.jsx
+│  │  │  ├─ ChartsGrid.jsx
+│  │  │  ├─ Header.jsx
+│  │  │  ├─ LedgerStream.jsx
+│  │  │  └─ MetricsGrid.jsx
+│  │  ├─ index.css
+│  │  └─ main.jsx
+│  └─ vite.config.js
+├─ package-lock.json
+├─ package.json
+├─ parser.py
+├─ README.md
+└─ screenshots
+   ├─ .png
+   ├─ analytics.png
+   ├─ calendar.png
+   ├─ dashboard.png
+   ├─ export.png
+   └─ lockscreen.png
+
+```

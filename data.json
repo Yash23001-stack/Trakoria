@@ -18,6 +18,168 @@
   },
   "transactions": [
     {
+      "id": 83,
+      "date": "2026-08-02",
+      "category": "food",
+      "amount": 15.0,
+      "note": "tea",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 82,
+      "date": "2026-08-02",
+      "category": "other",
+      "amount": 65.0,
+      "note": "grocery",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 81,
+      "date": "2026-08-02",
+      "category": "groceries",
+      "amount": 20.0,
+      "note": "milk",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 80,
+      "date": "2026-08-02",
+      "category": "other",
+      "amount": 35.0,
+      "note": "grocery",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 79,
+      "date": "2026-08-02",
+      "category": "bills",
+      "amount": 2500.0,
+      "note": "Credit Card Bill",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 78,
+      "date": "2026-08-02",
+      "category": "other",
+      "amount": 91.0,
+      "note": "refund from arpita",
+      "type": "income",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 77,
+      "date": "2026-08-02",
+      "category": "other",
+      "amount": 220.0,
+      "note": "aayush split",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 76,
+      "date": "2026-08-02",
+      "category": "other",
+      "amount": 45.0,
+      "note": "pragnya split",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 75,
+      "date": "2026-08-02",
+      "category": "other",
+      "amount": 106.0,
+      "note": "pooja split",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 74,
+      "date": "2026-08-02",
+      "category": "other",
+      "amount": 2750.0,
+      "note": "Mobile EMI",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 73,
+      "date": "2026-08-02",
+      "category": "other",
+      "amount": 19800.0,
+      "note": "salary",
+      "type": "income",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 72,
+      "date": "2026-07-31",
+      "category": "other",
+      "amount": 121.5,
+      "note": "chinese",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 71,
+      "date": "2026-07-31",
+      "category": "health",
+      "amount": 75.0,
+      "note": "medicine",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 70,
+      "date": "2026-07-31",
+      "category": "other",
+      "amount": 140.0,
+      "note": "paneer hotel surya",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 69,
+      "date": "2026-07-31",
+      "category": "other",
+      "amount": 140.0,
+      "note": "aloo paratha",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 68,
+      "date": "2026-07-29",
+      "category": "other",
+      "amount": 90.0,
+      "note": "egg bhurji",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 67,
+      "date": "2026-07-27",
+      "category": "groceries",
+      "amount": 30.0,
+      "note": "buttermilk",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 63,
+      "date": "2026-07-27",
+      "category": "other",
+      "amount": 160.0,
+      "note": "domino's",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
       "id": 62,
       "date": "2026-07-26",
       "category": "groceries",

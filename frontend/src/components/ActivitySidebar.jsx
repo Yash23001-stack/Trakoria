@@ -223,7 +223,7 @@ export default function ActivitySidebar({ txns, currency }) {
             className="bg-zinc-800 border border-zinc-700 text-white font-bold hover:bg-white hover:text-black p-2 text-[10px] uppercase tracking-widest transition-colors cursor-pointer"
           >
             + PDF STMT
-          </button>
+          </button>`
         </div>
       </div>
       
