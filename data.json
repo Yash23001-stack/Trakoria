@@ -18,6 +18,33 @@
   },
   "transactions": [
     {
+      "id": 86,
+      "date": "2026-08-03",
+      "category": "food",
+      "amount": 70.0,
+      "note": "food",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 85,
+      "date": "2026-08-03",
+      "category": "food",
+      "amount": 25.0,
+      "note": "tea",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 84,
+      "date": "2026-08-03",
+      "category": "food",
+      "amount": 80.0,
+      "note": "eggs",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
       "id": 83,
       "date": "2026-08-02",
       "category": "food",
