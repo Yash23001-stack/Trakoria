@@ -18,6 +18,114 @@
   },
   "transactions": [
     {
+      "id": 101,
+      "date": "2026-08-06",
+      "category": "other",
+      "amount": 45.0,
+      "note": "chapati",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 100,
+      "date": "2026-08-06",
+      "category": "rent",
+      "amount": 175.0,
+      "note": "rent",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 96,
+      "date": "2026-08-06",
+      "category": "rent",
+      "amount": 6500.0,
+      "note": "rent",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 95,
+      "date": "2026-08-05",
+      "category": "bills",
+      "amount": 272.0,
+      "note": "dish recharge",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 94,
+      "date": "2026-08-05",
+      "category": "other",
+      "amount": 300.0,
+      "note": "from baba",
+      "type": "income",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 93,
+      "date": "2026-08-05",
+      "category": "other",
+      "amount": 115.0,
+      "note": "grocery",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 92,
+      "date": "2026-08-05",
+      "category": "other",
+      "amount": 45.0,
+      "note": "chapati",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 91,
+      "date": "2026-08-05",
+      "category": "other",
+      "amount": 430.0,
+      "note": "Grocery",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 90,
+      "date": "2026-08-04",
+      "category": "groceries",
+      "amount": 15.0,
+      "note": "milk",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 89,
+      "date": "2026-08-04",
+      "category": "investments",
+      "amount": 500.0,
+      "note": "sip",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 88,
+      "date": "2026-08-04",
+      "category": "investments",
+      "amount": 250.0,
+      "note": "sip",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 87,
+      "date": "2026-08-04",
+      "category": "investments",
+      "amount": 250.0,
+      "note": "sip",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
       "id": 86,
       "date": "2026-08-03",
       "category": "food",
