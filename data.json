@@ -18,6 +18,87 @@
   },
   "transactions": [
     {
+      "id": 112,
+      "date": "2026-08-10",
+      "category": "other",
+      "amount": 37.0,
+      "note": "tee",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 111,
+      "date": "2026-08-10",
+      "category": "other",
+      "amount": 178.0,
+      "note": "dmart",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 110,
+      "date": "2026-08-10",
+      "category": "food",
+      "amount": 70.0,
+      "note": "food",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 109,
+      "date": "2026-08-10",
+      "category": "travel",
+      "amount": 405.0,
+      "note": "petrol",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 108,
+      "date": "2026-08-10",
+      "category": "other",
+      "amount": 250.0,
+      "note": "hair cut",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 105,
+      "date": "2026-08-10",
+      "category": "other",
+      "amount": 60.0,
+      "note": "grocery",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 104,
+      "date": "2026-08-10",
+      "category": "other",
+      "amount": 45.0,
+      "note": "chapati",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 103,
+      "date": "2026-08-10",
+      "category": "food",
+      "amount": 40.0,
+      "note": "Samosa",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
+      "id": 102,
+      "date": "2026-08-10",
+      "category": "food",
+      "amount": 65.0,
+      "note": "Tea",
+      "type": "expense",
+      "chat_id": 1082749361
+    },
+    {
       "id": 101,
       "date": "2026-08-06",
       "category": "other",
