@@ -1,10 +1,15 @@
+import os
 import sqlite3
 from contextlib import closing
 
-DB_NAME = "expenses.db"
+ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
+DB_NAME = os.getenv("TRAKORIA_DB_PATH", os.path.join(ROOT_DIR, "expenses.db"))
 
 
 def get_connection():
+    db_dir = os.path.dirname(DB_NAME)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     return conn
@@ -40,7 +45,7 @@ def add(date_str: str, category: str, amount: float, note: str, tx_type: str, ch
         conn.commit()
 
 
-def undo_last(chat_id: int) -> dict:
+def undo_last(chat_id: int) -> dict | None:
     with closing(get_connection()) as conn:
         cursor = conn.cursor()
         cursor.execute(

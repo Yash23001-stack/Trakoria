@@ -1,6 +1,9 @@
 import json
 import os
-import db
+try:
+    from . import db
+except ImportError:
+    import db
 
 def run_export():
     # Load configuration
@@ -24,7 +27,7 @@ def run_export():
     }
 
     # Write straight into the React source folder for hot-reloading asset changes
-    output_path = os.path.join(os.path.dirname(__file__), "data.json")
+    output_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data.json")
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 

@@ -25,6 +25,7 @@ env/
 
 # Logs
 *.log
+.trakoria/
 
 # OS
 Thumbs.db

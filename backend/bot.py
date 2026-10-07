@@ -4,9 +4,14 @@ from datetime import datetime
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from dotenv import load_dotenv
-import db
-import parser
-import export
+try:
+    from . import db
+    from . import parser
+    from . import export
+except ImportError:
+    import db
+    import parser
+    import export
 
 load_dotenv()
 

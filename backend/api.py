@@ -5,7 +5,12 @@ import json
 import os
 import csv
 import io
-import db
+try:
+    from . import db
+    from .schemas import TransactionCreate
+except ImportError:
+    import db
+    from schemas import TransactionCreate
 from fastapi.responses import FileResponse
 from datetime import datetime
 from dotenv import load_dotenv
@@ -64,6 +69,25 @@ def delete_transaction(txn_id: int):
     db.delete_txn(txn_id)
     return {"status": "success"}
 
+
+@app.post("/api/transactions", dependencies=[Depends(verify_pin)])
+def create_transaction(transaction: TransactionCreate):
+    config_data = get_config()
+    allowed_categories = set(config_data.get("budgets", {}).keys()) | {"other"}
+
+    if transaction.category not in allowed_categories:
+        raise HTTPException(status_code=422, detail="Invalid transaction category")
+
+    db.add(
+        transaction.date.isoformat(),
+        transaction.category,
+        transaction.amount,
+        transaction.note or transaction.category,
+        transaction.type,
+        transaction.chat_id,
+    )
+    return {"status": "success"}
+
 # --- 3. THE EXPORT CSV ROUTE ---
 @app.get("/api/export", dependencies=[Depends(verify_pin)])
 def export_csv():
@@ -94,7 +118,7 @@ def create_snapshot():
     # Grabs the live expenses.db file and forces a download
     date_str = datetime.now().strftime("%Y_%m_%d")
     return FileResponse(
-        "expenses.db", 
+        db.DB_NAME, 
         media_type="application/octet-stream", 
         filename=f"backup_{date_str}.db"
     )
