@@ -328,6 +328,87 @@ budgets
 
 The exact schema must be finalized before migration.
 
+### Supabase/PostgreSQL foundation
+
+T-002 introduces reproducible Supabase migration files under:
+
+```text
+supabase/migrations/
+```
+
+Current foundation migration:
+
+```text
+supabase/migrations/001_initial_schema.sql
+```
+
+Supabase Auth is the V1 identity source. Application data references `auth.users(id)` and is protected by PostgreSQL Row Level Security.
+
+V1 financial tables:
+
+```text
+categories
+transactions
+budgets
+```
+
+The current SQLite prototype remains active until a later approved migration task. Do not point existing dashboard endpoints at Supabase/PostgreSQL yet.
+
+### Supabase environment configuration
+
+Use `.env.example` as the placeholder template. Never commit real Supabase credentials.
+
+Backend-only values:
+
+```env
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_DATABASE_URL=
+```
+
+Frontend public values for later client/auth work:
+
+```env
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
+
+Never expose `SUPABASE_SERVICE_ROLE_KEY` or database passwords to the React frontend.
+
+### Local Supabase development
+
+The repository uses the official Supabase CLI through a project-local npm dev dependency.
+
+Check the local CLI:
+
+```powershell
+npx supabase --version
+```
+
+Initialize local Supabase configuration, if `supabase/config.toml` is missing:
+
+```powershell
+npx supabase init --yes
+```
+
+Run the local Supabase stack only when Docker Desktop is installed and running:
+
+```powershell
+npx supabase start
+```
+
+Expected local Supabase ports from `supabase/config.toml`:
+
+```text
+API:     http://127.0.0.1:54321
+DB:      localhost:54322
+Studio:  http://127.0.0.1:54323
+SMTP UI: http://127.0.0.1:54324
+```
+
+Do not run hosted-project link, push, or remote database commands during local environment setup. The current SQLite prototype remains the active application database until a later approved migration task.
+
 ---
 
 ## 8. Authentication & Authorization Rules
@@ -886,6 +967,30 @@ Web and Android use the same backend and database rather than maintaining separa
 **Status:** Approved
 
 Trakoria must support proper user isolation before public beta.
+
+### Decision: Supabase Auth is the V1 identity source
+
+**Status:** Approved
+
+Application tables reference Supabase Auth's `auth.users(id)`. Trakoria will not create a separate password/authentication system.
+
+### Decision: Per-user default categories
+
+**Status:** Approved
+
+Default categories are copied into each user's account when the Supabase Auth user is created. This keeps category ownership and RLS simple, and it allows future custom category edits without affecting other users.
+
+### Decision: PostgreSQL RLS protects financial rows
+
+**Status:** Approved
+
+`categories`, `transactions`, and `budgets` use Row Level Security policies based on `auth.uid()`. Client-supplied `user_id` values are not trusted.
+
+### Decision: Money is stored as NUMERIC
+
+**Status:** Approved
+
+PostgreSQL financial amounts use `numeric(12, 2)`, never `float`, `real`, or JavaScript-style binary floating point.
 
 ---
 

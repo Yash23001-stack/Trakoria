@@ -213,6 +213,8 @@ npm run dev
 
 ```
 http://localhost:5175
+
+.\start-dev.ps1
 ```
 
 ---

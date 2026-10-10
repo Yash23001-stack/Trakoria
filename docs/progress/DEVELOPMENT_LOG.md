@@ -195,3 +195,277 @@ Backend transaction API tests:
 - No Supabase/PostgreSQL migration started.
 - Add Transaction edit/delete refinements are still future work.
 - The startup helper starts hidden local processes and prints PIDs/log paths; a richer process manager was intentionally not introduced.
+
+## 2026-10-07 - T-002
+
+### Objective
+
+- Establish the V1 Supabase/PostgreSQL database foundation without migrating the current SQLite application.
+- Preserve the working React + TypeScript + Vite frontend and FastAPI + SQLite prototype backend.
+- Create reproducible migration files, RLS policy design, configuration placeholders, and foundation tests.
+
+### Current Architecture Discovered
+
+- Frontend: React 19 + TypeScript + Vite + Tailwind, with API calls centralized in `frontend/src/services/api.ts`.
+- Backend: FastAPI/Python, still using the SQLite prototype through `backend/db.py`.
+- Current API: global PIN via `x-pin`, `/api/data`, `/api/transactions`, `/api/export`, and `/api/backup`.
+- Current data model: SQLite `txns` table with integer `id`, text date/category/type, real amount, note, chat_id, and created_at.
+- Tests: frontend tests under `frontend/src/__tests__`; backend tests under `backend/tests`.
+
+### Schema Decisions
+
+- Supabase Auth's `auth.users(id)` is the identity source.
+- Application tables use UUID primary keys.
+- `categories`, `transactions`, and `budgets` have `user_id uuid not null references auth.users(id) on delete cascade`.
+- Money uses `numeric(12, 2)` with `amount > 0`; no `float` or `real`.
+- Currency is stored as uppercase `char(3)` defaulting to `INR`.
+- Transaction/category type is constrained to `income` or `expense`.
+- Budget period is constrained to `weekly`, `monthly`, `yearly`, or `custom`.
+- Historical transaction dates use `transaction_date date not null`.
+- Timestamps use `timestamptz not null default now()`, with update triggers.
+- Category names are unique per user and type through a lowercased unique index.
+
+### Category Decisions
+
+- Default categories are copied into each user's account when their Supabase Auth user is created.
+- Income defaults: Salary, Bonus, Extra Income.
+- Expense defaults: Food, Drink, Petrol, Travel, Shopping, Bills, Rent, Entertainment, Health, Other.
+- This choice keeps ownership simple under RLS and allows future per-user customization.
+- Transaction categories use `on delete restrict` so historical transactions are not orphaned.
+- Budget categories use `on delete cascade` because budgets are category-specific configuration.
+
+### Security And RLS Decisions
+
+- RLS is enabled on `categories`, `transactions`, and `budgets`.
+- SELECT policies use `user_id = auth.uid()`.
+- INSERT policies use `with check (user_id = auth.uid())`.
+- UPDATE policies use both `using (user_id = auth.uid())` and `with check (user_id = auth.uid())`.
+- DELETE policies use `user_id = auth.uid()`.
+- Client-supplied `user_id` cannot bypass ownership checks because policies compare to authenticated identity.
+- Trigger guards ensure transaction and budget category ownership matches the row owner.
+- Trigger guards ensure transaction type matches category type and budgets attach only to expense categories.
+
+### Files Added Or Changed
+
+- Added `supabase/migrations/001_initial_schema.sql`.
+- Added `backend/config.py`.
+- Added `backend/postgres/__init__.py`.
+- Added `backend/postgres/connection.py`.
+- Added `backend/tests/test_supabase_foundation.py`.
+- Added `.env.example`.
+- Updated `.gitignore`.
+- Updated `STARTUP.md`.
+- Updated `docs/progress/DEVELOPMENT_LOG.md`.
+
+### Migration Status
+
+- Migration file exists and is the reproducible source of truth for the V1 foundation schema.
+- Migration includes tables, constraints, indexes, triggers, default-category seeding, RLS enablement, and CRUD policies.
+- Migration was statically validated by tests.
+- Migration was not executed against a live Supabase/PostgreSQL instance in this task.
+
+### Tests Performed
+
+- `npm test`
+  - Result: passed.
+  - Output summary: `Test Files 1 passed (1)`, `Tests 8 passed (8)`.
+- `npm run lint`
+  - Result: passed.
+- `npm run build`
+  - Result: passed.
+  - Output summary: `797 modules transformed`, `built in 500ms`.
+- `npx tsc --noEmit`
+  - Result: passed.
+- `pytest -q`
+  - Result: passed.
+  - Output summary: `21 passed in 0.23s`.
+- `python -m compileall backend`
+  - Result: passed.
+
+### Existing Application Regression
+
+- `.\start-dev.ps1 -UseSmokeDb` started backend and frontend.
+- Backend smoke request returned HTTP `200`.
+- Frontend smoke request returned HTTP `200`.
+- Current SQLite API and Add Transaction tests continue to pass.
+
+### Known Limitations
+
+- RLS behavior was validated by migration inspection tests only, not by executing against PostgreSQL/Supabase.
+- No Supabase credentials were configured or used.
+- No current SQLite endpoint was migrated to PostgreSQL.
+- No frontend Supabase client/auth UI was implemented.
+
+### Deferred Work
+
+- Execute migrations against a local Supabase or isolated PostgreSQL test database.
+- Add live RLS tests that authenticate as User A and User B.
+- Implement Supabase Auth integration.
+- Migrate transaction APIs from SQLite to PostgreSQL in a later approved task.
+- Migrate existing SQLite data in a later approved task.
+
+## 2026-10-07 - T-002.1
+
+### Objective
+
+- Set up the local Supabase CLI/project environment only.
+- Do not connect to or mutate the hosted Trakoria Supabase project.
+- Preserve the current FastAPI + SQLite prototype application.
+
+### Environment Discovered
+
+- Node.js: `v24.13.0`.
+- npm: `11.6.2`.
+- Python: `3.11.9`.
+- Docker CLI: installed, `Docker version 29.7.2, build a7dcaa6`.
+- Docker daemon/Desktop: not reachable from the CLI.
+- Docker warning observed: `Error loading config file: open C:\Users\Admin\.docker\config.json: Access is denied.`
+- Supabase CLI before setup: not available on PATH.
+- Supabase CLI after setup: project-local `npx supabase --version` reports `2.120.0`.
+
+### CLI Status
+
+- Added the official Supabase CLI as a root npm dev dependency.
+- Verified the CLI with `npx supabase --version`.
+- The CLI writes cache/telemetry under `C:\Users\Admin\.supabase`; sandboxed CLI runs needed normal user-profile access.
+
+### Docker Status
+
+- Docker is installed but not running or not accessible.
+- `docker info --format '{{json .ServerVersion}}'` failed because the Docker named pipe was unavailable.
+- Local Supabase was not started because Docker was not ready.
+
+### Changes Made
+
+- Installed project-local Supabase CLI dependency.
+- Created `supabase/config.toml` using `npx supabase init --yes`.
+- Preserved `supabase/migrations/001_initial_schema.sql`.
+- Updated `.gitignore` to ignore root `node_modules/` for future generated dependency artifacts.
+- Updated `STARTUP.md` with local Supabase setup commands and expected local ports.
+
+### Commands Executed
+
+- `node --version` -> `v24.13.0`.
+- `npm --version` -> `11.6.2`.
+- `python --version` -> `Python 3.11.9`.
+- `docker --version` -> installed, with Docker config access warning.
+- `docker info --format '{{json .ServerVersion}}'` -> failed; Docker daemon not reachable.
+- `supabase --version` -> failed; CLI not on PATH.
+- `npm install -D supabase` -> succeeded, with `1 moderate severity vulnerability`.
+- `npx supabase --version` -> `2.120.0`.
+- `npx supabase init --yes` -> `Finished supabase init.`
+
+### Test Results
+
+- `npm test`
+  - Result: passed.
+  - Output summary: `Test Files 1 passed (1)`, `Tests 8 passed (8)`.
+- `npm run lint`
+  - Result: passed.
+- `npm run build`
+  - Result: passed.
+  - Output summary: `797 modules transformed`, built in `1.05s`.
+  - Warning: Vite chunk-size warning remains.
+- `npx tsc --noEmit`
+  - Result: passed.
+- `pytest -q`
+  - Result: passed.
+  - Output summary: `21 passed in 0.30s`.
+- `python -m compileall backend`
+  - Result: passed.
+
+### Existing Application Regression
+
+- `.\start-dev.ps1 -UseSmokeDb` launched backend and frontend using the isolated smoke database at `.trakoria/dev-smoke.db`.
+- Frontend smoke request to `http://localhost:5175/` returned HTTP `200`.
+- Backend smoke request to `http://127.0.0.1:8000/api/data` returned HTTP `200` when called with the configured local PIN without printing the PIN value.
+- The SQLite prototype was not migrated.
+
+### Blockers
+
+- Local Supabase stack could not be started because Docker Desktop/daemon was not reachable.
+- A pre-existing/inaccessible listener remained reported on `127.0.0.1:8000` as PID `3296`; the startup helper still launched and verified successfully, but that local port state should be cleaned up if it reappears.
+
+### Next Step
+
+- Start Docker Desktop and fix access to `C:\Users\Admin\.docker\config.json` if needed.
+- Then run `npx supabase start` from the repository root.
+- The next task should execute and validate migrations only against the local Supabase stack, not the hosted project.
+
+## 2026-10-10 - T-002.2
+
+### Objective
+
+- Complete local PostgreSQL/Supabase verification for the V1 foundation schema.
+- Exercise RLS as authenticated Supabase users, not as the privileged `postgres` role.
+- Preserve the current SQLite prototype and avoid hosted production data.
+
+### Scope
+
+- Added isolated local Supabase/PostgREST integration tests in `backend/tests/test_supabase_rls_integration.py`.
+- Tests create disposable Supabase Auth users through the local Auth API.
+- Tests use the users' issued access tokens for all RLS assertions against `categories`, `transactions`, and `budgets`.
+- Tests use the local service-role key only for cleanup of disposable public rows and Auth users.
+- No login UI, production migration, deployment, or SQLite API migration was implemented.
+
+### RLS Coverage Added
+
+- User A can read their own rows.
+- User A cannot read User B's rows.
+- User A cannot delete User B's rows.
+- User A cannot insert rows with User B's `user_id`.
+- User A cannot update their own rows to transfer ownership to User B.
+- User A cannot modify User B's rows.
+- The same ownership checks are covered for `categories`, `transactions`, and `budgets`.
+
+### Local Migration And Supabase Verification
+
+- `npx supabase status -o env`
+  - Result: passed.
+  - Local API URL: `http://127.0.0.1:56000`.
+  - Local DB URL: `postgresql://postgres:postgres@127.0.0.1:56001/postgres`.
+  - Note: `supabase_imgproxy_ExpenseTracker` and `supabase_pooler_ExpenseTracker` were reported stopped, but the API/Auth/PostgREST/database services needed for this task were available.
+- `npx supabase db reset`
+  - Result: passed.
+  - Output included `Applying migration 001_initial_schema.sql`.
+  - Output warning: `no files matched pattern: supabase/seed.sql`.
+  - Completed with `Finished supabase db reset on branch main.`
+- `pytest -q backend\tests\test_supabase_rls_integration.py` after reset
+  - Result: passed.
+  - Output summary: `3 passed in 1.15s`.
+
+### Test Results
+
+- `pytest -q backend\tests\test_supabase_rls_integration.py`
+  - Result: passed.
+  - Output summary before reset: `3 passed in 1.48s`.
+- `pytest -q`
+  - Result: passed.
+  - Output summary: `24 passed in 1.50s`.
+- `python -m compileall backend`
+  - Result: passed.
+  - Output included compilation of `backend\tests\test_supabase_rls_integration.py`.
+- `npm test` from `frontend/`
+  - Result: passed.
+  - Output summary: `Test Files 1 passed (1)`, `Tests 8 passed (8)`.
+- `npm run lint` from `frontend/`
+  - Result: passed.
+- `npx tsc --noEmit` from `frontend/`
+  - Result: passed.
+- `npm run build` from `frontend/`
+  - Result: passed.
+  - Output summary: `797 modules transformed`, built in `556ms`.
+  - Warning: Vite chunk-size warning remains for the large PDF/export production chunk.
+
+### Warnings And Limitations
+
+- Integration tests intentionally require local Supabase credentials through `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` or the matching `LOCAL_SUPABASE_*` variables; otherwise they skip instead of touching any hosted project.
+- The local Supabase database was reset for migration reproducibility verification, so only disposable local data should be kept there.
+- The command sandbox helper failed before launching normal commands in this environment, so verification commands were run with approved escalated execution. This did not require changes to application code.
+- Hosted Supabase was not contacted.
+
+### Readiness Assessment
+
+- Schema migration reproducibility is verified against local Supabase via `npx supabase db reset`.
+- Authenticated cross-user RLS isolation is verified against local Supabase for `categories`, `transactions`, and `budgets`.
+- T-002 can be treated as READY for the local foundation scope; application-level Supabase Auth wiring and migration away from SQLite remain future tasks.
