@@ -149,8 +149,12 @@ npm run dev
 Expected local URLs:
 
 ```text
-Backend:  http://127.0.0.1:8000
-Frontend: http://localhost:5175
+Backend API:          http://127.0.0.1:8000
+Frontend:             http://localhost:5175
+Local Supabase API:   http://127.0.0.1:56000
+Local Supabase DB:    postgresql://postgres:postgres@127.0.0.1:56001/postgres
+Local Supabase Studio:http://127.0.0.1:56004
+Local Supabase Mail:  http://127.0.0.1:56005
 ```
 
 The frontend is React + TypeScript + Vite. The normal frontend development command is `npm run dev`, and Vite is configured to use port `5175`.
@@ -367,14 +371,23 @@ SUPABASE_SERVICE_ROLE_KEY=
 SUPABASE_DATABASE_URL=
 ```
 
-Frontend public values for later client/auth work:
+Frontend public values for browser client/auth work:
 
 ```env
 VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
 VITE_SUPABASE_ANON_KEY=
+VITE_SUPABASE_REDIRECT_URL=
 ```
 
-Never expose `SUPABASE_SERVICE_ROLE_KEY` or database passwords to the React frontend.
+Local frontend Supabase development normally uses:
+
+```env
+VITE_SUPABASE_URL=http://127.0.0.1:56000
+VITE_SUPABASE_REDIRECT_URL=http://localhost:5175/auth/callback
+```
+
+Use the local public publishable or anonymous key from `npx supabase status -o env`. Never expose `SUPABASE_SERVICE_ROLE_KEY`, JWT signing secrets, OAuth client secrets, or database passwords to the React frontend.
 
 ### Local Supabase development
 
@@ -401,11 +414,22 @@ npx supabase start
 Expected local Supabase ports from `supabase/config.toml`:
 
 ```text
-API:     http://127.0.0.1:54321
-DB:      localhost:54322
-Studio:  http://127.0.0.1:54323
-SMTP UI: http://127.0.0.1:54324
+API:       http://127.0.0.1:56000
+DB:        postgresql://postgres:postgres@127.0.0.1:56001/postgres
+Shadow DB: localhost:56002
+Pooler:    localhost:56003 (disabled by default)
+Studio:    http://127.0.0.1:56004
+SMTP UI:   http://127.0.0.1:56005
+Analytics: localhost:56006
 ```
+
+The local Supabase Auth callback URL for the Vite frontend is:
+
+```text
+http://localhost:5175/auth/callback
+```
+
+Keep this URL in the local Supabase redirect allow-list. Hosted frontend callback URLs must be configured deliberately for the target hosting domain and are not guessed in this repository.
 
 Do not run hosted-project link, push, or remote database commands during local environment setup. The current SQLite prototype remains the active application database until a later approved migration task.
 

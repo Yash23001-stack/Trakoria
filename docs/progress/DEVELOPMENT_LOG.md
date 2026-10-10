@@ -469,3 +469,71 @@ Backend transaction API tests:
 - Schema migration reproducibility is verified against local Supabase via `npx supabase db reset`.
 - Authenticated cross-user RLS isolation is verified against local Supabase for `categories`, `transactions`, and `budgets`.
 - T-002 can be treated as READY for the local foundation scope; application-level Supabase Auth wiring and migration away from SQLite remain future tasks.
+
+## 2026-10-10 - T-003.1
+
+### Objective
+
+- Add only the frontend Supabase client and configuration foundation for future authentication work.
+- Preserve the existing PIN-based SQLite dashboard and FastAPI API behavior.
+- Do not implement login/signup UI, OAuth callback behavior, backend JWT verification, transaction CRUD migration, database migration, hosted settings changes, or deployment.
+
+### Scope
+
+- Added `@supabase/supabase-js` to the frontend package manifest and lockfile.
+- Added a focused browser Supabase client module at `frontend/src/services/supabase.ts`.
+- The client reads only public Vite variables:
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_PUBLISHABLE_KEY`
+  - `VITE_SUPABASE_ANON_KEY`
+- The client prefers the publishable key and supports the anonymous key name for compatibility.
+- The client validates missing and placeholder values when client creation/config resolution is requested.
+- The existing application does not import the Supabase client yet, so the current PIN unlock and SQLite dashboard remain unchanged.
+- Updated `.env.example` with placeholder-only public frontend Supabase values and the local callback URL.
+- Updated `.gitignore` so `.env.example` can be tracked while real `.env` files remain ignored.
+- Corrected local Supabase documentation in `STARTUP.md` to the custom ports from `supabase/config.toml`.
+- Updated local `supabase/config.toml` redirect settings to match the Vite frontend:
+  - Site URL: `http://localhost:5175`
+  - Callback allow-list URL: `http://localhost:5175/auth/callback`
+- No hosted Supabase project settings were changed or guessed.
+
+### Tests Added
+
+- Added `frontend/src/__tests__/services/supabase.test.ts`.
+- Coverage includes:
+  - Reading public Supabase URL and publishable key from Vite-style env.
+  - Fallback to `VITE_SUPABASE_ANON_KEY` when publishable key is absent.
+  - Rejection of missing or placeholder configuration.
+  - Initialization options for browser session persistence and OAuth URL detection.
+
+### Test Results
+
+- `npm test` from `frontend/`
+  - Result: passed.
+  - Output summary: `Test Files 2 passed (2)`, `Tests 12 passed (12)`.
+- `npm run lint` from `frontend/`
+  - Result: passed.
+- `npx tsc --noEmit` from `frontend/`
+  - Result: passed.
+- `npm run build` from `frontend/`
+  - Result: passed.
+  - Output summary: `797 modules transformed`, built in `847ms`.
+  - Warning: Vite chunk-size warning remains for the large PDF/export production chunk.
+- `pytest -q`
+  - Result: passed.
+  - Output summary: `21 passed, 3 skipped in 0.25s`.
+  - Skips: local Supabase RLS integration tests skipped because this run did not set local Supabase credentials.
+- `python -m compileall backend`
+  - Result: passed.
+
+### Security Notes
+
+- No service-role key, JWT signing secret, OAuth client secret, database URL, or database password was added to frontend code.
+- No `.env` file was committed or printed.
+- Hosted Supabase and hosted production data were not contacted.
+- The local callback URL is documented and configured only for local development.
+
+### Remaining Configuration Questions
+
+- Hosted frontend callback URL is still unresolved and must be configured deliberately once the deployment domain is chosen.
+- T-003.2 still needs the AuthProvider/session layer and UI flow; this task only created the client/config foundation.
