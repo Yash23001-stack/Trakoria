@@ -1,11 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createTransaction,
+  createSecureBudget,
   createSecureTransaction,
+  deleteSecureBudget,
   deleteTransaction,
   deleteSecureTransaction,
   downloadApiFile,
   fetchSecureDashboardData,
+  updateSecureTransaction,
+  updateSecureBudget,
   fetchAuthenticatedIdentity,
   fetchDashboardData,
 } from '../../services/api';
@@ -148,7 +152,7 @@ describe('frontend API helpers', () => {
     });
   });
 
-  it('uses bearer authentication for secure transaction writes and deletes', async () => {
+  it('uses bearer authentication for secure transaction writes, updates, and deletes', async () => {
     fetchMock.mockResolvedValue({ ok: true });
 
     await createSecureTransaction('secure-access-token', {
@@ -158,13 +162,66 @@ describe('frontend API helpers', () => {
       date: '2026-10-07',
       note: '',
     });
+    await updateSecureTransaction('secure-access-token', 'txn-a', {
+      amount: 125,
+      note: 'Updated',
+    });
     await deleteSecureTransaction('secure-access-token', 'txn-a');
 
     expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:8000/api/secure/transactions', expect.objectContaining({
       method: 'POST',
       headers: expect.objectContaining({ Authorization: 'Bearer secure-access-token' }),
     }));
-    expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:8000/api/secure/transactions/txn-a', {
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:8000/api/secure/transactions/txn-a', expect.objectContaining({
+      method: 'PATCH',
+      headers: expect.objectContaining({ Authorization: 'Bearer secure-access-token' }),
+    }));
+    expect(fetchMock).toHaveBeenNthCalledWith(3, 'http://localhost:8000/api/secure/transactions/txn-a', {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer secure-access-token' },
+    });
+  });
+
+  it('uses bearer authentication for secure budget create, update, and delete', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        id: 'budget-a',
+        category: 'food',
+        amount: 1000,
+        period: 'monthly',
+        start_date: '2026-10-01',
+        end_date: null,
+        spent: 0,
+        remaining: 1000,
+      }),
+    });
+
+    await createSecureBudget('secure-access-token', {
+      category: 'food',
+      amount: 1000,
+      period: 'monthly',
+      start_date: '2026-10-01',
+      end_date: null,
+    });
+    await updateSecureBudget('secure-access-token', 'budget-a', {
+      category: 'food',
+      amount: 1200,
+      period: 'monthly',
+      start_date: '2026-10-01',
+      end_date: null,
+    });
+    await deleteSecureBudget('secure-access-token', 'budget-a');
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:8000/api/secure/budgets', expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({ Authorization: 'Bearer secure-access-token' }),
+    }));
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:8000/api/secure/budgets/budget-a', expect.objectContaining({
+      method: 'PATCH',
+      headers: expect.objectContaining({ Authorization: 'Bearer secure-access-token' }),
+    }));
+    expect(fetchMock).toHaveBeenNthCalledWith(3, 'http://localhost:8000/api/secure/budgets/budget-a', {
       method: 'DELETE',
       headers: { Authorization: 'Bearer secure-access-token' },
     });

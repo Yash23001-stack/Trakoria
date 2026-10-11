@@ -16,12 +16,23 @@ function redirectUrl(): string {
   return import.meta.env.VITE_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth/callback`;
 }
 
+function recoveryRedirectUrl(): string {
+  return import.meta.env.VITE_SUPABASE_RECOVERY_REDIRECT_URL || `${window.location.origin}/auth/recovery`;
+}
+
+function urlHasRecoveryMarker(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  return params.get('type') === 'recovery' || hashParams.get('type') === 'recovery';
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [client, setClient] = useState<SupabaseClient | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [backendIdentity, setBackendIdentity] = useState<BackendIdentity | null>(null);
   const [identityLoading, setIdentityLoading] = useState(false);
   const [identityError, setIdentityError] = useState<string | null>(null);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(() => urlHasRecoveryMarker());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const verificationSequence = useRef(0);
@@ -48,8 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       });
 
-      const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
         setSession(nextSession);
+        setIsPasswordRecovery(event === 'PASSWORD_RECOVERY' || (Boolean(nextSession) && urlHasRecoveryMarker()));
         if (!nextSession) {
           setBackendIdentity(null);
           setIdentityError(null);
@@ -137,6 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setSession(data.session);
+    setIsPasswordRecovery(false);
   }, [requireClient]);
 
   const signIn = useCallback(async (email: string, password: string) => {
@@ -150,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setSession(data.session);
+    setIsPasswordRecovery(false);
   }, [requireClient]);
 
   const signInWithGoogle = useCallback(async () => {
@@ -182,7 +196,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setBackendIdentity(null);
     setIdentityError(null);
     setIdentityLoading(false);
+    setIsPasswordRecovery(false);
   }, [requireClient]);
+
+  const resetPassword = useCallback(async (email: string) => {
+    setError(null);
+    const { error: resetError } = await requireClient().auth.resetPasswordForEmail(email, {
+      redirectTo: recoveryRedirectUrl(),
+    });
+
+    if (resetError) {
+      const message = authErrorMessage(resetError, 'Unable to send password recovery email.');
+      setError(message);
+      throw new Error(message);
+    }
+  }, [requireClient]);
+
+  const updatePassword = useCallback(async (password: string) => {
+    setError(null);
+    const { data, error: updateError } = await requireClient().auth.updateUser({ password });
+
+    if (updateError) {
+      const message = authErrorMessage(updateError, 'Unable to update your password.');
+      setError(message);
+      throw new Error(message);
+    }
+
+    if (data.user && session) {
+      setSession({
+        ...session,
+        user: data.user,
+      });
+    }
+  }, [requireClient, session]);
 
   const value = useMemo<AuthContextValue>(() => ({
     session,
@@ -192,11 +238,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     identityLoading,
     identityVerified: Boolean(backendIdentity && !identityLoading && !identityError),
     identityError,
+    isPasswordRecovery,
     error,
     signUp,
     signIn,
     signInWithGoogle,
     signOut,
+    resetPassword,
+    updatePassword,
     verifyBackendIdentity,
     clearError: () => setError(null),
   }), [
@@ -204,12 +253,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     error,
     identityError,
     identityLoading,
+    isPasswordRecovery,
     loading,
     session,
     signIn,
     signInWithGoogle,
     signOut,
     signUp,
+    resetPassword,
+    updatePassword,
     verifyBackendIdentity,
   ]);
 

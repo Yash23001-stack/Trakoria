@@ -130,6 +130,60 @@ def test_secure_update_denies_when_rls_hides_the_transaction(client, monkeypatch
     assert response.json()["detail"] == "Transaction not found"
 
 
+def test_secure_budget_crud_derives_owner_and_uses_rls_enforced_requests(client, monkeypatch):
+    calls = configure(client, monkeypatch, user("user-a", "a@example.com", "token-a"), [
+        MockResponse(data=[{"id": "cat-a", "name": "Food", "type": "expense"}]),
+        MockResponse(status_code=201, data=[{
+            "id": "budget-a",
+            "amount": "1000",
+            "period": "monthly",
+            "start_date": "2026-10-01",
+            "end_date": None,
+            "categories": {"id": "cat-a", "name": "Food", "type": "expense"},
+        }]),
+        MockResponse(status_code=200, data=[{
+            "id": "budget-a",
+            "amount": "1200",
+            "period": "monthly",
+            "start_date": "2026-10-01",
+            "end_date": None,
+            "categories": {"id": "cat-a", "name": "Food", "type": "expense"},
+        }]),
+        MockResponse(status_code=200, data=[{"id": "budget-a"}]),
+    ])
+
+    create_response = client.post("/api/secure/budgets", json={
+        "category": "food",
+        "amount": 1000,
+        "period": "monthly",
+        "start_date": "2026-10-01",
+        "user_id": "forged-user-b",
+    })
+    update_response = client.patch("/api/secure/budgets/budget-a", json={"amount": 1200})
+    delete_response = client.delete("/api/secure/budgets/budget-a")
+
+    assert create_response.status_code == 200
+    assert update_response.status_code == 200
+    assert delete_response.status_code == 200
+    assert calls[1].kwargs["json"]["user_id"] == "user-a"
+    assert "forged-user-b" not in str(calls[1].kwargs["json"])
+    assert calls[2].method == "PATCH"
+    assert "budgets?id=eq.budget-a" in calls[2].url
+    assert calls[3].method == "DELETE"
+    assert calls[3].kwargs["headers"]["Authorization"] == "Bearer token-a"
+
+
+def test_secure_budget_update_denies_when_rls_hides_budget(client, monkeypatch):
+    configure(client, monkeypatch, user("user-a", "a@example.com", "token-a"), [
+        MockResponse(status_code=200, data=[]),
+    ])
+
+    response = client.patch("/api/secure/budgets/budget-b", json={"amount": 1200})
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Budget not found"
+
+
 def test_secure_export_contains_only_postgrest_rows(client, monkeypatch):
     configure(client, monkeypatch, user("user-a", "a@example.com", "token-a"), [
         MockResponse(data=[{

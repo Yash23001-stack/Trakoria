@@ -48,7 +48,8 @@ describe('DataOperations', () => {
     await user.click(screen.getByRole('button', { name: /^pdf$/i }));
 
     expect(pdfSpies.text).toHaveBeenCalledWith('Account Email: second@example.com', 16, 38);
-    expect(pdfSpies.text).toHaveBeenCalledWith('Status: Backend Verified', 110, 50);
+    expect(pdfSpies.text).toHaveBeenCalledWith('Account Status: Authenticated', 110, 50);
+    expect(screen.queryByText(/telegram/i)).not.toBeInTheDocument();
     expect(pdfSpies.text).not.toHaveBeenCalledWith(expect.stringContaining('YASH'), expect.any(Number), expect.any(Number));
     expect(pdfSpies.text).not.toHaveBeenCalledWith('Status: Verified Offline', expect.any(Number), expect.any(Number));
   });

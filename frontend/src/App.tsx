@@ -5,6 +5,7 @@ import AuthPanel from './components/auth/AuthPanel';
 import AccountBoard from './components/auth/AccountBoard';
 import DashboardPage from './pages/DashboardPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
+import PasswordRecoveryPage from './pages/PasswordRecoveryPage';
 import { useTransactions } from './hooks/useTransactions';
 
 function AuthenticatedShell() {
@@ -16,6 +17,7 @@ function AuthenticatedShell() {
     loading: authLoading,
     session,
     signOut,
+    updatePassword,
     user,
   } = useAuth();
   const [toast, setToast] = useState<string | null>(null);
@@ -25,7 +27,12 @@ function AuthenticatedShell() {
     loading,
     error: financialError,
     addTransaction,
+    editTransaction,
     removeTransaction,
+    addBudget,
+    editBudget,
+    removeBudget,
+    refresh,
   } = useTransactions(session?.access_token, backendIdentity?.user_id);
 
   const showNotification = (message: string) => {
@@ -60,6 +67,7 @@ function AuthenticatedShell() {
             identityError={identityError}
             identityLoading={identityLoading}
             onLogout={handleLogout}
+            onChangePassword={updatePassword}
           />
         </div>
       </div>
@@ -75,6 +83,7 @@ function AuthenticatedShell() {
           identityError={identityError}
           identityLoading={identityLoading}
           onLogout={handleLogout}
+          onChangePassword={updatePassword}
         />
       )}
       txns={txns}
@@ -86,7 +95,13 @@ function AuthenticatedShell() {
       onLogout={handleLogout}
       onNotify={showNotification}
       onAddTransaction={addTransaction}
+      onUpdateTransaction={editTransaction}
       onDeleteTransaction={removeTransaction}
+      onRetryLoad={refresh}
+      onAddBudget={addBudget}
+      onEditBudget={editBudget}
+      onDeleteBudget={removeBudget}
+      onChangePassword={updatePassword}
     />
   );
 }
@@ -94,6 +109,10 @@ function AuthenticatedShell() {
 function AppRoutes() {
   if (window.location.pathname === '/auth/callback') {
     return <AuthCallbackPage />;
+  }
+
+  if (window.location.pathname === '/auth/recovery') {
+    return <PasswordRecoveryPage />;
   }
 
   return <AuthenticatedShell />;

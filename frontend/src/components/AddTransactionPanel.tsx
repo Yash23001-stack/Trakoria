@@ -7,7 +7,7 @@ interface AddTransactionPanelProps {
   onAddTransaction: (transaction: TransactionInput) => Promise<void>;
 }
 
-const FALLBACK_CATEGORIES = ['food', 'travel', 'groceries', 'bills', 'rent', 'other'];
+const FALLBACK_CATEGORIES = ['food', 'drink', 'petrol', 'travel', 'shopping', 'bills', 'rent', 'entertainment', 'health', 'other'];
 
 export default function AddTransactionPanel({ budgets, onAddTransaction }: AddTransactionPanelProps) {
   const categories = useMemo(() => {

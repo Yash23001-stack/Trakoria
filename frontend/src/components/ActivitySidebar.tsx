@@ -1,5 +1,4 @@
 import type { Transaction } from '../types/transaction';
-import BotStatus from './activity/BotStatus';
 import DataOperations from './activity/DataOperations';
 import LiveFeed from './activity/LiveFeed';
 
@@ -13,7 +12,6 @@ interface ActivitySidebarProps {
 export default function ActivitySidebar({ txns, currency, accountEmail, identityVerified }: ActivitySidebarProps) {
   return (
     <div className="flex flex-col gap-4 h-full">
-      <BotStatus />
       <DataOperations txns={txns} accountEmail={accountEmail} identityVerified={identityVerified} />
       <LiveFeed txns={txns} currency={currency} />
     </div>

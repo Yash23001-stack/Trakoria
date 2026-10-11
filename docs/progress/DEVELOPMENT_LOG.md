@@ -1508,3 +1508,539 @@ Backend transaction API tests:
   - Passing direct local FastAPI/PostgREST two-user authorization verification.
   - Passing visible browser two-account verification.
   - Passing final frontend/backend/build/type/lint/diff gates.
+
+## 2026-10-11 - T-005 Account UX, Password Recovery, Budgets, And Telegram UI Cleanup
+
+### Objective
+
+- Improve post-T-003 account UX without weakening JWT verification, RLS, or T-003.5 containment.
+- Add password-strength feedback, password recovery, authenticated password update, and user-owned budget management.
+- Remove active Telegram connection/options from the V1 UI while leaving backend bot implementation untouched for a future V3 review.
+
+### Implementation
+
+- Added shared frontend password feedback in `frontend/src/utils/password.ts`.
+  - Validation is aligned with current local Supabase configuration: `minimum_password_length = 6`; stronger feedback is advisory, not presented as a hard Supabase rule.
+- Updated `AuthPanel` sign-in/sign-up UX:
+  - Password strength feedback while typing.
+  - Password visibility toggle.
+  - Confirm-password validation for sign-up.
+  - Neutral forgot-password request copy that does not reveal whether an arbitrary email has an account.
+- Added Supabase password recovery support:
+  - `AuthProvider.resetPassword(email)` calls Supabase Auth password reset with a recovery redirect.
+  - Added `PasswordRecoveryPage` at `/auth/recovery` for recovery-session password updates.
+  - Added `VITE_SUPABASE_RECOVERY_REDIRECT_URL` to `.env.example`.
+  - Added `http://localhost:5175/auth/recovery` to local Supabase `additional_redirect_urls`.
+  - Hosted Supabase deployments must allow-list the same hosted recovery URL in the Supabase Auth redirect settings.
+- Added authenticated change-password support:
+  - `AuthProvider.updatePassword(password)` calls Supabase Auth `updateUser`.
+  - `AccountBoard` provides the authenticated change-password form.
+  - Plaintext passwords are not stored or logged.
+- Removed visible `Backend Identity: Verified` text from the active account UI.
+  - Backend identity verification remains active; user-facing errors now describe account access verification without exposing internal implementation labels.
+- Added user-owned budget CRUD through secure FastAPI/PostgREST routes:
+  - `GET /api/secure/budgets`
+  - `POST /api/secure/budgets`
+  - `PATCH /api/secure/budgets/{budget_id}`
+  - `DELETE /api/secure/budgets/{budget_id}`
+  - Budget ownership is derived from the verified bearer token and sent to Supabase/PostgREST with the user's access token and the public anon key so RLS remains in force.
+  - Dashboard data now includes `config.budgetItems` with spending and remaining values derived from the current user's transactions.
+  - No SQLite fallback was added.
+- Added `BudgetManager` to the dashboard:
+  - Create, view, edit, and delete budgets.
+  - Required field, amount, period, and custom end-date validation.
+  - INR formatting and empty state.
+  - Spending/remaining display from current user transaction data.
+- Removed Telegram UI entry points from active V1:
+  - `ActivitySidebar` no longer renders `BotStatus`.
+  - `DataOperations` no longer states that Telegram capture is active.
+  - `backend/bot.py` and bot configuration were not deleted or changed.
+  - Telegram remains deferred for a future V3 integration; no claim is made that Telegram entries write to the new PostgreSQL financial store.
+- Legacy SQLite financial API containment remains in place. Existing SQLite data was not deleted, reset, migrated, or assigned to any Supabase account.
+
+### Tests Added Or Updated
+
+- Frontend:
+  - `AuthPanel` tests for password feedback, confirm-password mismatch, forgot-password flow, and recovery redirect.
+  - `AuthProvider` tests for Supabase password recovery/update methods and no token/password logging through those flows.
+  - `PasswordRecoveryPage` tests for missing recovery sessions, successful password update, weak password, and mismatch handling.
+  - `AccountBoard` tests for current email display, absence of the technical backend identity string, generic verification errors, logout, and password change.
+  - `BudgetManager` tests for empty state, create, edit, delete, validation, and displayed remaining budget.
+  - API helper tests for secure budget create/update/delete bearer headers.
+  - Data operations regression test for current-account PDF labels and no visible Telegram text.
+- Backend:
+  - Secure financial API tests for budget create/update/delete requests, owner derivation from verified identity, and RLS-hidden budget update denial.
+  - Local secure-route integration test now verifies two-user budget isolation, forged `user_id` rejection by ownership derivation, and cross-user budget update/delete denial.
+
+### Validation Results
+
+- `npm test -- --runInBand`
+  - Result: failed before tests ran.
+  - Reason: Vitest does not support the Jest `--runInBand` option in this project.
+- `npm test`
+  - Result: passed.
+  - Output summary: `Test Files 10 passed (10)`, `Tests 56 passed (56)`.
+- `pytest`
+  - Initial default run result: `40 passed, 4 skipped in 1.30s`.
+  - Skip reason: local Supabase service-role-backed integration variables were not present in the default shell environment.
+- Full backend run with local Supabase env derived in-process from `npx supabase status -o env`, without printing values:
+  - Result: passed.
+  - Output summary: `44 passed in 4.74s`.
+- Local Supabase RLS and secure-route integration subset with in-process local env:
+  - Result: passed.
+  - Output summary: `4 passed in 3.33s`.
+- `npm run lint`
+  - Result: passed.
+- `npx tsc --noEmit`
+  - Result: passed.
+- `npm run build`
+  - Result: passed.
+  - Warning: Vite chunk-size warning remains; largest built chunk reported as `1,227.21 kB` minified.
+- `python -m compileall backend`
+  - Result: passed.
+- TOML syntax validation:
+  - Command: `python -c "import pathlib, tomllib; tomllib.loads(pathlib.Path('supabase/config.toml').read_text(encoding='utf-8')); print('supabase/config.toml OK')"`
+  - Result: passed.
+- Supabase schema lint:
+  - Command: `npx supabase db lint --local`
+  - Result: passed; `No schema errors found`.
+- `git diff --check`
+  - Result: passed.
+  - Warning: Git reported LF-to-CRLF conversion warnings for modified files.
+
+### Manual Browser Verification
+
+- Not performed for T-005 in this pass.
+- Remaining manual checks:
+  - Weak-password feedback during sign-up.
+  - Password recovery email request and recovery session.
+  - Password update and subsequent login.
+  - Account board email display without the technical verification string.
+  - Create/edit/delete budgets as one local synthetic user.
+  - Confirm another local synthetic user cannot read or modify that user's budgets.
+  - Empty budget state for a new user.
+  - Confirm Telegram connection controls no longer appear in the active UI.
+  - Confirm manual income and expense entry still works.
+  - Confirm existing transaction isolation remains intact.
+
+### Known Limitations
+
+- Password recovery requires the hosted Supabase Auth redirect allow-list to include the deployed `/auth/recovery` URL before hosted recovery emails are used.
+- Current password strength feedback is intentionally conservative and aligned to the configured Supabase minimum length; it is not a cryptographic password-quality guarantee.
+- Budget spending is calculated from currently returned user-owned transactions for matching expense categories; date-window-specific budget spending can be refined later if product requirements demand it.
+- Telegram is intentionally hidden from the active V1 UI and remains deferred to V3; existing backend bot code was not audited or migrated to PostgreSQL in this ticket.
+
+## 2026-10-11 - Trakoria V2 Design-Driven Implementation And Password Recovery Follow-Up
+
+### Objective
+
+- Use `C:\Users\Admin\Downloads\Trakoria Dashboard Redesign (1).html` as the primary visual reference for the authenticated dashboard.
+- Align the active React app with the approved V2 Overview, Add Transaction popup, Budgets, Transactions desktop/phone, and Settings patterns where practical within the current architecture.
+- Keep T-003 secure `/api/secure/*` financial access, per-user PostgreSQL/RLS isolation, and T-003.5 legacy SQLite containment intact.
+- Tighten password recovery/change-password UX to the configured local Supabase password policy.
+
+### Design Reference Inspection
+
+- The supplied HTML reference was accessible and inspected locally.
+- The reference contains approved variants for:
+  - first-run/auth,
+  - dashboard/overview,
+  - budget view,
+  - desktop transaction ledger states,
+  - phone overview,
+  - phone transactions,
+  - add-transaction dialog,
+  - settings.
+- Approved visual patterns identified:
+  - dark terminal-inspired shell,
+  - persistent desktop sidebar,
+  - mobile bottom navigation with a central add action,
+  - compact metric cards,
+  - modal add-transaction flow,
+  - grouped transaction ledger,
+  - calendar/date filter,
+  - risk-oriented budget rows,
+  - account/settings panels.
+- The design reference includes placeholder sample amounts, transaction labels, budget examples, and Telegram copy; these were not hardcoded into production behavior.
+
+### Comparison Findings
+
+- Existing secure auth, backend identity verification, PostgreSQL/RLS-backed transaction reads/writes, and budget CRUD were already present from T-003/T-005 work.
+- The current dashboard was still a simpler one-page composition and did not match the approved multi-screen V2 shell.
+- The app lacked the approved V2 navigation set: Overview, Transactions, Budgets, Insights, Data, Settings.
+- Add transaction existed, but not as the approved modal-only entry flow from the desktop top bar and mobile center add button.
+- Transactions lacked the approved combined search/filter/chip/calendar/grouped-ledger interaction model.
+- Settings existed only partially through account/password components, not as a dedicated V2 screen.
+- Active Telegram UI had already been mostly removed, but this pass rechecked the active V2 surfaces for Telegram/bot copy.
+
+### Implementation
+
+- Reworked `frontend/src/pages/DashboardPage.tsx` into a V2 authenticated shell:
+  - desktop sidebar and mobile bottom navigation,
+  - Overview, Transactions, Budgets, Insights, Data, and Settings screens,
+  - approved Add Transaction modal entry points,
+  - real authenticated transaction and budget data only,
+  - meaningful empty/loading/error states,
+  - no production hardcoded sample financial data.
+- Added transaction update support through the existing secure frontend/backend path:
+  - `frontend/src/services/api.ts`,
+  - `frontend/src/hooks/useTransactions.ts`,
+  - `frontend/src/types/transaction.ts`,
+  - `frontend/src/App.tsx`.
+- Transactions screen now supports:
+  - live search,
+  - numeric `above` / `below` search expressions,
+  - type/category/date filters,
+  - active filter chips and Clear all,
+  - day calendar with upcoming dates disabled,
+  - accessible calendar-day total labels,
+  - grouped-by-day ledger rows with daily totals,
+  - prefilled edit dialog,
+  - delete confirmation,
+  - real retry callback through `useTransactions.refresh`.
+- Budgets screen uses the existing user-owned `BudgetManager` with secure budget endpoints.
+- Settings screen now includes:
+  - read-only signed-in email,
+  - change-password form with show/hide, confirmation, requirement feedback, and disabled submit until valid,
+  - terminal-lock section that does not pretend the legacy PIN is active in V2,
+  - currency/grouping/decimal preview and non-conversion warning,
+  - logout action.
+- Password policy alignment:
+  - `frontend/src/utils/password.ts` now requires at least 8 characters and at least one number.
+  - `supabase/config.toml` now uses `minimum_password_length = 8` and `password_requirements = "letters_digits"`.
+  - Sign-up, recovery, account-board, and settings password flows were updated to match that policy.
+- Password recovery remains implemented through Supabase Auth:
+  - recovery request uses `resetPasswordForEmail(...)` with `VITE_SUPABASE_RECOVERY_REDIRECT_URL`.
+  - `/auth/recovery` accepts a restored Supabase recovery session and calls `updateUser({ password })`.
+  - UI uses privacy-safe recovery request confirmation.
+- Telegram/bot UI:
+  - active V2 dashboard surfaces do not expose Telegram connection controls, bot-online status, `/add` hints, or visible "via bot" labels.
+  - backend bot code remains in place for future V3 scope.
+- Visible `Backend Identity: Verified` text remains removed from user-facing account UI while backend identity verification remains active.
+
+### Tests Added Or Updated
+
+- Added `frontend/src/__tests__/pages/DashboardPage.test.tsx` for V2 navigation, Telegram UI absence, add-transaction modal save, transaction numeric filtering/editing, settings password validation, and logout.
+- Updated existing auth/account/recovery tests for the 8-character plus number password policy and disabled invalid-submit behavior.
+- Updated API helper tests for secure transaction update requests.
+
+### Automated Validation Results
+
+- `npm test`
+  - Result: passed.
+  - Output summary: `Test Files 11 passed (11)`, `Tests 60 passed (60)`.
+- `npm run lint`
+  - Result: passed.
+- `npx tsc --noEmit`
+  - Result: passed.
+- `npm run build`
+  - Result: passed.
+  - Output summary: `75 modules transformed`; output included `dist/index.html`, CSS, and JS bundle; no Vite chunk-size warning in this run.
+- `pytest -q`
+  - Result: passed with skips.
+  - Output summary: `40 passed, 4 skipped in 1.89s`.
+- `pytest -q -rs`
+  - Result: passed with skips.
+  - Output summary: `40 passed, 4 skipped in 2.15s`.
+  - Skips: local Supabase RLS integration tests require `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in the process environment.
+- Local Supabase RLS/secure-route subset with local CLI values mapped in-process without printing values:
+  - Command: `python -m pytest -q backend\tests\test_supabase_rls_integration.py backend\tests\test_secure_financial_local_integration.py -rs`
+  - Result: passed.
+  - Output summary: `4 passed in 4.13s`.
+- Full backend suite with local CLI values mapped in-process without printing values:
+  - Command: `python -m pytest -q -rs`
+  - Result: passed.
+  - Output summary: `44 passed in 5.69s`.
+- `python -m compileall backend`
+  - Result: passed.
+- TOML syntax validation:
+  - Command: `python -c "import pathlib, tomllib; tomllib.loads(pathlib.Path('supabase/config.toml').read_text(encoding='utf-8')); print('supabase/config.toml OK')"`
+  - Result: passed; `supabase/config.toml OK`.
+- Supabase schema lint:
+  - Initial sandboxed run failed because the Supabase CLI attempted to write telemetry/cache data under `C:\Users\Admin\.supabase`.
+  - Escalated rerun command: `npx supabase db lint --local`
+  - Result: passed; `No schema errors found`.
+- `git diff --check`
+  - Result: passed before this log entry.
+  - Warning: Git reported LF-to-CRLF conversion warnings for modified files.
+
+### Manual And Browser Verification
+
+- Browser verification was not performed in this pass.
+- Local Mailpit or hosted recovery email delivery was not verified in this pass.
+- No hosted Supabase project, hosted SMTP provider, real financial data, real passwords, or real recovery tokens were used.
+
+### Required Supabase Password Recovery Configuration
+
+- Local development:
+  - `supabase/config.toml` allow-lists `http://localhost:5175/auth/recovery`.
+  - `VITE_SUPABASE_RECOVERY_REDIRECT_URL` should point to `http://localhost:5175/auth/recovery`.
+  - Local email delivery should be verified through local Supabase Mailpit when performing browser/manual recovery checks.
+- Hosted deployment:
+  - Add the deployed `https://<production-domain>/auth/recovery` URL to Supabase Auth redirect allow-list.
+  - Configure Supabase Auth SMTP with a verified sender domain and provider credentials in the Supabase dashboard or hosting secret store.
+  - Do not commit SMTP credentials or place them in frontend code.
+  - Do not treat a successful reset API response as proof that email delivery works; verify an actual recovery email link end-to-end before release.
+
+### Known Limitations And Remaining Verification
+
+- This V2 pass is not marked complete because browser verification and actual email-delivery/recovery-link verification were not performed.
+- The active V2 dashboard is substantially closer to the approved reference, but `DashboardPage.tsx` is now large and should be split into focused components in a follow-up cleanup pass.
+- Currency/format settings currently affect the displayed V2 session preview/rendering but are not yet persisted as user preferences.
+- Data screen exports the currently loaded authenticated account data from the frontend state; hosted export/download behavior should be browser-verified before release.
+- Password reset email delivery still requires local Mailpit or hosted SMTP verification.
+- Existing SQLite data was preserved and no ownership was guessed or migrated.
+
+## 2026-10-11 - V2 Critical Fixes: Mobile Filter Dropdown And Password Recovery
+
+### Objective
+
+- Fix the Transactions filter dropdown presentation defect without changing working financial logic.
+- Verify and harden password recovery request/session/update behavior.
+- Preserve Supabase Auth, secure `/api/secure/*` routes, JWT verification, PostgreSQL RLS, and T-003.5 legacy SQLite containment.
+
+### Issue A - Mobile Filter Dropdown
+
+#### Investigation
+
+- Inspected `frontend/src/pages/DashboardPage.tsx`.
+- Confirmed the Transactions filter controls for type, category, and date range were native HTML `<select>` elements.
+- The closed controls were styled dark, but native select option popups are rendered by the browser/OS and cannot be reliably styled with app CSS, especially on mobile browsers.
+- This explains the observed giant white popup over the dark V2 dashboard.
+
+#### Implementation
+
+- Replaced the three Transactions filter `<select>` controls with an accessible custom dark `FilterDropdown` listbox component in `frontend/src/pages/DashboardPage.tsx`.
+- The new dropdowns preserve existing filter state and filtering behavior.
+- Added:
+  - dark V2 styling for closed and open states,
+  - selected-value display,
+  - `aria-haspopup="listbox"`, `aria-expanded`, `role="listbox"`, and `role="option"`,
+  - focus on the selected option when opened,
+  - Escape-to-close behavior,
+  - outside-click dismissal,
+  - bounded dropdown height with scrolling.
+- Backend APIs and financial logic were not changed for this issue.
+
+#### Tests
+
+- Updated `frontend/src/__tests__/pages/DashboardPage.test.tsx`.
+- Added coverage for:
+  - opening the type dropdown,
+  - selecting a type,
+  - opening/selecting category,
+  - opening date range,
+  - Escape-to-close,
+  - preserving selected values and existing filtering behavior.
+
+#### Browser Check
+
+- Used the in-app browser against `http://localhost:5175`.
+- Created and then deleted a synthetic local Supabase user for the check.
+- Verified the Transactions type filter rendered as an in-app dark listbox, not a native white popup.
+- Observed viewport reported by the browser page: `1280x720`.
+- Attempted to open a mobile-sized browser tab with a `390x844` viewport option, but the in-app browser still reported/rendered at `1280x720`; true narrow viewport emulation was not available through this tool in this pass.
+- No real-device verification was performed.
+
+### Issue B - Password Recovery
+
+#### Investigation
+
+- Inspected:
+  - `frontend/src/pages/PasswordRecoveryPage.tsx`,
+  - `frontend/src/App.tsx`,
+  - `frontend/src/auth/AuthProvider.tsx`,
+  - `frontend/src/auth/auth-context.ts`,
+  - `frontend/src/services/supabase.ts`,
+  - `supabase/config.toml`,
+  - `.env.example`,
+  - password recovery tests,
+  - this development log.
+- Confirmed the app already calls `supabase.auth.resetPasswordForEmail(email, { redirectTo })`.
+- Confirmed the local redirect URL is configured as `http://localhost:5175/auth/recovery` in `.env.example` and `supabase/config.toml`.
+- Confirmed `createSupabaseBrowserClient()` has `detectSessionInUrl: true`.
+- Found a recovery-page state gap: `/auth/recovery` accepted any existing Supabase session as eligible to show the new-password form, rather than requiring a Supabase recovery context.
+- Email non-delivery cannot be fixed from frontend code alone when SMTP/provider/domain configuration is missing or blocked. A successful Supabase API response only means the request was accepted by Supabase Auth, not that an email reached an inbox.
+
+#### Implementation
+
+- Added `isPasswordRecovery` to the auth context.
+- `AuthProvider` now sets recovery mode when:
+  - Supabase emits the `PASSWORD_RECOVERY` auth event, or
+  - the URL contains a recovery marker from the reset link.
+- Sign-up, sign-in, and sign-out clear recovery mode.
+- `PasswordRecoveryPage` now:
+  - shows the password reset form only when both a session and a recovery context are present,
+  - treats ordinary sessions on `/auth/recovery` as invalid recovery state,
+  - shows a useful expired/missing/already-used link message,
+  - validates weak and mismatched passwords before update,
+  - reports success only after `updateUser({ password })` succeeds,
+  - provides a Return To Sign In action after success or invalid recovery state.
+
+#### Tests
+
+- Updated `frontend/src/__tests__/pages/PasswordRecoveryPage.test.tsx`.
+- Updated `frontend/src/__tests__/components/AuthPanel.test.tsx`.
+- Added/covered:
+  - reset request success and redirect URL,
+  - reset request API error handling,
+  - missing/expired recovery state,
+  - ordinary non-recovery session rejected on recovery route,
+  - valid recovery session password update,
+  - weak password disabled state,
+  - mismatch validation,
+  - password update failure,
+  - successful update with return-to-sign-in action present.
+
+#### Local Email Integration Verification
+
+- Used local Supabase and Mailpit only.
+- Created a synthetic local user.
+- Requested password recovery via Supabase Auth.
+- Confirmed an actual recovery email was captured in local Mailpit.
+- Opened the captured Supabase auth link programmatically without printing the URL or tokens.
+- Confirmed the link redirected to `/auth/recovery` with a recovery session marker.
+- Used the recovery session to update the password.
+- Confirmed sign-in with the new password succeeded.
+- Deleted the synthetic local user after verification.
+- No tokens, recovery links, passwords, SMTP credentials, service-role keys, or `.env` values were printed.
+
+### Required Manual Hosted Configuration
+
+- Hosted Supabase Auth must allow-list the deployed recovery URL:
+  - `https://<production-domain>/auth/recovery`
+- Local development should keep:
+  - `http://localhost:5175/auth/recovery`
+- Configure custom SMTP in Supabase Auth with:
+  - a production email provider,
+  - a verified sender domain,
+  - provider credentials stored only in Supabase/hosting secret settings,
+  - no SMTP credentials in Git or frontend code.
+- Hosted delivery remains unverified until a real hosted recovery email is received and used successfully with a synthetic hosted test account.
+
+### Validation Results
+
+- `npm test`
+  - Result: passed.
+  - Output summary: `Test Files 11 passed (11)`, `Tests 64 passed (64)`.
+- `npm run lint`
+  - Result: passed.
+- `npx tsc --noEmit`
+  - Result: passed.
+- `npm run build`
+  - Result: passed.
+  - Output summary: `75 modules transformed`; built `dist/index.html`, CSS, and JS bundle.
+- `pytest -q -rs`
+  - Result: passed with local-Supabase integration skips in the default shell.
+  - Output summary: `40 passed, 4 skipped in 0.86s`.
+  - Skip reason: default shell did not provide `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`.
+- Local Supabase RLS/secure financial subset with local CLI values mapped in-process:
+  - Command: `python -m pytest -q backend\tests\test_supabase_rls_integration.py backend\tests\test_secure_financial_local_integration.py -rs`
+  - Result: passed.
+  - Output summary: `4 passed in 2.91s`.
+- Full backend suite with local CLI values mapped in-process:
+  - Command: `python -m pytest -q -rs`
+  - Result: passed.
+  - Output summary: `44 passed in 3.97s`.
+- Local Supabase/Mailpit recovery script:
+  - Result: passed.
+  - Output summary:
+    - `local recovery email captured: yes`
+    - `local recovery redirect route: /auth/recovery`
+    - `local recovery password update: passed`
+    - `local sign-in with new password: passed`
+- `python -m compileall backend`
+  - Result: passed.
+- `git diff --check`
+  - Result: passed.
+  - Warning: Git reported LF-to-CRLF conversion warnings for modified files.
+
+### Status
+
+- Issue A is fixed in code and automated tests. Browser rendering was verified in the available in-app browser viewport, but not in a true narrow/mobile viewport because viewport emulation was unavailable.
+- Issue B is fixed for local Supabase/Mailpit and automated flows. Hosted SMTP/email delivery remains pending project-owner configuration and hosted end-to-end verification.
+
+## 2026-10-11 - V2 Final Mobile Budgets Fix
+
+### Objective
+
+- Fix the remaining native mobile dropdown issue in the Budgets form only.
+- Preserve existing budget create, edit, delete, validation, and period calculation behavior.
+- Do not modify password recovery, backend authorization, financial APIs, or unrelated screens.
+
+### Investigation
+
+- Inspected `frontend/src/components/BudgetManager.tsx`.
+- Found two native `<select>` controls in the Budgets form:
+  - `Category`
+  - `Period`
+- The Period select was the reported mobile white-popup issue, and Category had the same native-popup risk.
+- Start and end dates were already stored as date-only input values, but edit mode accepted API values directly. If an API ever returned an ISO timestamp, the browser date input could receive an invalid value or show an inconsistent calendar date.
+
+### Implementation
+
+- Extracted the existing Transactions dark listbox into `frontend/src/components/ui/FilterDropdown.tsx`.
+- Updated `frontend/src/pages/DashboardPage.tsx` to import the shared dropdown instead of defining it inline.
+- Replaced Budgets form native dropdowns with the shared dark listbox:
+  - `Budget category`
+  - `Budget period`
+- Budget period options remain:
+  - Weekly
+  - Monthly
+  - Yearly
+  - Custom
+- Added date-only normalization in `BudgetManager`:
+  - form state and edit-mode population use `YYYY-MM-DD`,
+  - validation compares date-only strings,
+  - save payload sends date-only `start_date` and `end_date`,
+  - budget cards display date-only start/end dates.
+- Kept native date inputs as `type="date"` because they are date pickers, not dropdown selects; no UTC `Date` construction was introduced.
+- Adjusted the Budgets form grid so controls stack cleanly on narrow screens and do not require horizontal overflow.
+
+### Tests
+
+- Updated `frontend/src/__tests__/components/BudgetManager.test.tsx`.
+- Added/covered:
+  - dark category listbox opens and selects a category,
+  - all period options can be selected: Weekly, Monthly, Yearly, Custom,
+  - custom-period end date is required and must not precede start date,
+  - start date payload preserves the selected date,
+  - edit mode normalizes ISO-like stored dates to date-only input values,
+  - edited start/end dates are submitted as date-only values.
+
+### Validation Results
+
+- Focused frontend tests:
+  - Command: `npm test -- BudgetManager DashboardPage`
+  - Result: passed.
+  - Output summary: `Test Files 2 passed (2)`, `Tests 9 passed (9)`.
+- Full frontend tests:
+  - Command: `npm test`
+  - Result: passed.
+  - Output summary: `Test Files 11 passed (11)`, `Tests 66 passed (66)`.
+- TypeScript:
+  - Command: `npx tsc --noEmit`
+  - Result: passed.
+- Lint:
+  - Command: `npm run lint`
+  - Result: passed.
+- Production build:
+  - Command: `npm run build`
+  - Result: passed.
+  - Output summary: `76 modules transformed`; built `dist/index.html`, CSS, and JS bundle.
+- `git diff --check`
+  - Result: passed.
+  - Warning: Git reported LF-to-CRLF conversion warnings for modified files.
+
+### Browser Verification
+
+- Real `393 x 852` browser viewport verification was attempted but not available in this environment:
+  - the in-app browser previously rendered/reported desktop dimensions even when a mobile viewport was requested,
+  - Chrome browser automation was unavailable,
+  - Playwright was not installed in the project.
+- Therefore, no real iPhone 16 / `393 x 852` verification is claimed in this pass.
+
+### Status
+
+- Budgets native dropdown issue is fixed in code and automated tests.
+- Manual Chrome DevTools verification at `393 x 852` remains recommended before release.

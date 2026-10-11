@@ -50,6 +50,8 @@ function createClientMock(initialSession: Session | null = null) {
       signUp: vi.fn().mockResolvedValue({ data: { session }, error: null }),
       signInWithPassword: vi.fn().mockResolvedValue({ data: { session }, error: null }),
       signInWithOAuth: vi.fn().mockResolvedValue({ data: {}, error: null }),
+      resetPasswordForEmail: vi.fn().mockResolvedValue({ data: {}, error: null }),
+      updateUser: vi.fn().mockResolvedValue({ data: { user: session.user }, error: null }),
       signOut: vi.fn().mockResolvedValue({ error: null }),
     },
   };
@@ -66,6 +68,8 @@ function createSessionErrorClient() {
       signUp: vi.fn(),
       signInWithPassword: vi.fn(),
       signInWithOAuth: vi.fn(),
+      resetPasswordForEmail: vi.fn(),
+      updateUser: vi.fn(),
       signOut: vi.fn(),
     },
   };
@@ -99,6 +103,21 @@ function BackendIdentityProbe() {
     <button type="button" onClick={() => void verifyBackendIdentity()}>
       Verify Backend Identity
     </button>
+  );
+}
+
+function PasswordActionsProbe() {
+  const { loading, resetPassword, updatePassword } = useAuth();
+
+  if (loading) {
+    return <div>Loading auth</div>;
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={() => void resetPassword('recover@example.com')}>Recover</button>
+      <button type="button" onClick={() => void updatePassword('new-password-42')}>Update Password</button>
+    </div>
   );
 }
 
@@ -293,5 +312,28 @@ describe('AuthProvider', () => {
     await user.click(await screen.findByRole('button', { name: /verify backend identity/i }));
 
     expect(fetchAuthenticatedIdentity).toHaveBeenCalledWith('redacted-access-token');
+  });
+
+  it('uses Supabase recovery and update-password flows without logging plaintext passwords', async () => {
+    const user = userEvent.setup();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { client } = createClientMock(session);
+    vi.mocked(createSupabaseBrowserClient).mockReturnValue(client as never);
+    vi.stubEnv('VITE_SUPABASE_RECOVERY_REDIRECT_URL', 'http://localhost:5175/auth/recovery');
+
+    render(
+      <AuthProvider>
+        <PasswordActionsProbe />
+      </AuthProvider>,
+    );
+
+    await user.click(await screen.findByRole('button', { name: /recover/i }));
+    await user.click(screen.getByRole('button', { name: /update password/i }));
+
+    expect(client.auth.resetPasswordForEmail).toHaveBeenCalledWith('recover@example.com', {
+      redirectTo: 'http://localhost:5175/auth/recovery',
+    });
+    expect(client.auth.updateUser).toHaveBeenCalledWith({ password: 'new-password-42' });
+    expect(consoleError).not.toHaveBeenCalled();
   });
 });

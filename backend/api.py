@@ -10,12 +10,12 @@ try:
     from . import db
     from .auth import AuthenticatedUser, get_current_user
     from .postgres import financial
-    from .schemas import TransactionCreate, TransactionUpdate
+    from .schemas import BudgetCreate, BudgetUpdate, TransactionCreate, TransactionUpdate
 except ImportError:
     import db
     from auth import AuthenticatedUser, get_current_user
     from postgres import financial
-    from schemas import TransactionCreate, TransactionUpdate
+    from schemas import BudgetCreate, BudgetUpdate, TransactionCreate, TransactionUpdate
 from fastapi.responses import FileResponse
 from datetime import datetime
 from dotenv import load_dotenv
@@ -109,6 +109,33 @@ def create_secure_backup(current_user: AuthenticatedUser = Depends(get_current_u
         financial.backup_json(financial.get_financial_client(current_user)),
         headers={"Content-Disposition": "attachment; filename=trakoria_backup.json"},
     )
+
+
+@app.get("/api/secure/budgets")
+def list_secure_budgets(current_user: AuthenticatedUser = Depends(get_current_user)):
+    return financial.budget_payload(financial.get_financial_client(current_user))
+
+
+@app.post("/api/secure/budgets")
+def create_secure_budget(
+    budget: BudgetCreate,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    return financial.create_budget(financial.get_financial_client(current_user), budget)
+
+
+@app.patch("/api/secure/budgets/{budget_id}")
+def update_secure_budget(
+    budget_id: str,
+    budget: BudgetUpdate,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    return financial.update_budget(financial.get_financial_client(current_user), budget_id, budget)
+
+
+@app.delete("/api/secure/budgets/{budget_id}")
+def delete_secure_budget(budget_id: str, current_user: AuthenticatedUser = Depends(get_current_user)):
+    return financial.delete_budget(financial.get_financial_client(current_user), budget_id)
 
 
 # --- 1. THE DASHBOARD DATA ROUTE ---

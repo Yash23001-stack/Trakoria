@@ -1,4 +1,4 @@
-import type { DashboardData, TransactionInput } from '../types/transaction';
+import type { Budget, BudgetInput, DashboardData, TransactionInput, TransactionUpdateInput } from '../types/transaction';
 
 export const API_BASE = import.meta.env.VITE_API_BASE_URL || `http://${window.location.hostname}:8000`;
 
@@ -98,6 +98,93 @@ export async function deleteSecureTransaction(
 
   if (!response.ok) {
     throw financialError(response, 'Unable to delete transaction');
+  }
+}
+
+export async function updateSecureTransaction(
+  accessToken: string | null | undefined,
+  transactionId: string,
+  transaction: TransactionUpdateInput,
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/secure/transactions/${transactionId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(accessToken),
+    },
+    body: JSON.stringify(transaction),
+  });
+
+  if (!response.ok) {
+    throw financialError(response, 'Unable to update transaction');
+  }
+}
+
+export async function fetchSecureBudgets(accessToken: string | null | undefined): Promise<Budget[]> {
+  const response = await fetch(`${API_BASE}/api/secure/budgets`, {
+    headers: authHeaders(accessToken),
+  });
+
+  if (!response.ok) {
+    throw financialError(response, 'Unable to load budgets');
+  }
+
+  const data = await response.json();
+  return data.budgets || [];
+}
+
+export async function createSecureBudget(
+  accessToken: string | null | undefined,
+  budget: BudgetInput,
+): Promise<Budget> {
+  const response = await fetch(`${API_BASE}/api/secure/budgets`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(accessToken),
+    },
+    body: JSON.stringify(budget),
+  });
+
+  if (!response.ok) {
+    throw financialError(response, 'Unable to create budget');
+  }
+
+  return response.json();
+}
+
+export async function updateSecureBudget(
+  accessToken: string | null | undefined,
+  budgetId: string,
+  budget: BudgetInput,
+): Promise<Budget> {
+  const response = await fetch(`${API_BASE}/api/secure/budgets/${budgetId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(accessToken),
+    },
+    body: JSON.stringify(budget),
+  });
+
+  if (!response.ok) {
+    throw financialError(response, 'Unable to update budget');
+  }
+
+  return response.json();
+}
+
+export async function deleteSecureBudget(
+  accessToken: string | null | undefined,
+  budgetId: string,
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/secure/budgets/${budgetId}`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
+  });
+
+  if (!response.ok) {
+    throw financialError(response, 'Unable to delete budget');
   }
 }
 

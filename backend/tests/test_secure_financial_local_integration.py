@@ -42,6 +42,11 @@ def _transactions(response) -> list[dict]:
     return response.json()["transactions"]
 
 
+def _budgets(response) -> list[dict]:
+    assert response.status_code == 200, response.text
+    return response.json()["budgets"]
+
+
 @pytest.fixture()
 def secure_route_users(supabase_settings: SupabaseLocalSettings):
     users: list[SupabaseUser] = []
@@ -95,6 +100,24 @@ def test_secure_financial_routes_deny_direct_cross_user_access(
     assert create_b.status_code == 200, create_b.text
     assert forged.status_code == 200, forged.text
 
+    budget_a = client.post("/api/secure/budgets", headers=_auth(user_a), json={
+        "category": "food",
+        "amount": 1000,
+        "period": "monthly",
+        "start_date": "2026-10-01",
+        "user_id": user_b.id,
+    })
+    budget_b = client.post("/api/secure/budgets", headers=_auth(user_b), json={
+        "category": "food",
+        "amount": 2000,
+        "period": "monthly",
+        "start_date": "2026-10-01",
+    })
+
+    assert budget_a.status_code == 200, budget_a.text
+    assert budget_b.status_code == 200, budget_b.text
+    budget_a_id = budget_a.json()["id"]
+
     user_a_rows = _transactions(client.get("/api/secure/data", headers=_auth(user_a)))
     user_b_rows = _transactions(client.get("/api/secure/data", headers=_auth(user_b)))
     user_a_notes = {row["note"] for row in user_a_rows}
@@ -105,6 +128,11 @@ def test_secure_financial_routes_deny_direct_cross_user_access(
     assert {"DIRECT_USER_B_ONLY"} <= user_b_notes
     assert "DIRECT_USER_A_ONLY" not in user_b_notes
     assert "DIRECT_FORGED_OWNER" not in user_b_notes
+
+    user_a_budgets = _budgets(client.get("/api/secure/budgets", headers=_auth(user_a)))
+    user_b_budgets = _budgets(client.get("/api/secure/budgets", headers=_auth(user_b)))
+    assert {budget["amount"] for budget in user_a_budgets} == {1000.0}
+    assert {budget["amount"] for budget in user_b_budgets} == {2000.0}
 
     user_a_transaction = next(row for row in user_a_rows if row["note"] == "DIRECT_USER_A_ONLY")
 
@@ -121,10 +149,25 @@ def test_secure_financial_routes_deny_direct_cross_user_access(
     assert patch_other.status_code == 404
     assert delete_other.status_code == 404
 
+    patch_other_budget = client.patch(
+        f"/api/secure/budgets/{budget_a_id}",
+        headers=_auth(user_b),
+        json={"amount": 9999},
+    )
+    delete_other_budget = client.delete(
+        f"/api/secure/budgets/{budget_a_id}",
+        headers=_auth(user_b),
+    )
+
+    assert patch_other_budget.status_code == 404
+    assert delete_other_budget.status_code == 404
+
     user_a_after = _transactions(client.get("/api/secure/data", headers=_auth(user_a)))
     user_a_after_notes = {row["note"] for row in user_a_after}
     assert "DIRECT_USER_A_ONLY" in user_a_after_notes
     assert "DIRECT_STOLEN_BY_B" not in user_a_after_notes
+    user_a_budgets_after = _budgets(client.get("/api/secure/budgets", headers=_auth(user_a)))
+    assert {budget["amount"] for budget in user_a_budgets_after} == {1000.0}
 
     assert client.get("/api/secure/data").status_code == 401
     assert client.get(

@@ -42,7 +42,7 @@ export default function DataOperations({ txns, accountEmail, identityVerified }:
       doc.text('Base Currency: INR', 16, 50);
       doc.text(`Statement Date: ${new Date().toLocaleDateString('en-IN')}`, 110, 38);
       doc.text(`Total Records: ${txns.length}`, 110, 44);
-      doc.text(`Status: ${identityVerified ? 'Backend Verified' : 'Unverified'}`, 110, 50);
+      doc.text(`Account Status: ${identityVerified ? 'Authenticated' : 'Unavailable'}`, 110, 50);
 
       const sortedTxns = [...txns].sort((a, b) => {
         const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
@@ -103,7 +103,7 @@ export default function DataOperations({ txns, accountEmail, identityVerified }:
           Import
         </h3>
         <div className="text-[10px] text-zinc-600 uppercase tracking-widest mt-3 leading-5">
-          Manual add and Telegram capture are active.
+          Manual add and account-scoped exports are active.
         </div>
       </div>
 

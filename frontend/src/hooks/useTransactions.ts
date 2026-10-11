@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { createSecureTransaction, deleteSecureTransaction, fetchSecureDashboardData } from '../services/api';
-import type { AppConfig, Transaction, TransactionInput } from '../types/transaction';
+import {
+  createSecureBudget,
+  createSecureTransaction,
+  deleteSecureBudget,
+  deleteSecureTransaction,
+  fetchSecureDashboardData,
+  updateSecureTransaction,
+  updateSecureBudget,
+} from '../services/api';
+import type { AppConfig, BudgetInput, Transaction, TransactionInput, TransactionUpdateInput } from '../types/transaction';
 
 const DEFAULT_CONFIG: AppConfig = { currency: '₹', monthlyBudget: 19800, budgets: {} };
 
@@ -49,6 +57,26 @@ export function useTransactions(accessToken: string | null | undefined, identity
     await refresh();
   }, [accessToken, refresh]);
 
+  const editTransaction = useCallback(async (transactionId: string, transaction: TransactionUpdateInput) => {
+    await updateSecureTransaction(accessToken, transactionId, transaction);
+    await refresh();
+  }, [accessToken, refresh]);
+
+  const addBudget = useCallback(async (budget: BudgetInput) => {
+    await createSecureBudget(accessToken, budget);
+    await refresh();
+  }, [accessToken, refresh]);
+
+  const editBudget = useCallback(async (budgetId: string, budget: BudgetInput) => {
+    await updateSecureBudget(accessToken, budgetId, budget);
+    await refresh();
+  }, [accessToken, refresh]);
+
+  const removeBudget = useCallback(async (budgetId: string) => {
+    await deleteSecureBudget(accessToken, budgetId);
+    await refresh();
+  }, [accessToken, refresh]);
+
   useEffect(() => {
     clearData();
     void refresh();
@@ -61,7 +89,11 @@ export function useTransactions(accessToken: string | null | undefined, identity
     error,
     refresh,
     addTransaction,
+    editTransaction,
     removeTransaction,
+    addBudget,
+    editBudget,
+    removeBudget,
     setLoading,
   };
 }
