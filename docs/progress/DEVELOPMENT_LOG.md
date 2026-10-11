@@ -2215,6 +2215,7 @@ Backend transaction API tests:
   - Command: `npm run build`
   - Result: passed.
   - Output summary: `76 modules transformed`; built `dist/index.html`, CSS, and JS bundle.
+
 - Backend tests:
   - Command: `pytest -q backend\tests -rs`
   - Result: passed with local-Supabase integration skips in the default shell.
@@ -2265,6 +2266,7 @@ Backend transaction API tests:
   - Command: `npm run build`
   - Result: passed.
   - Output summary: `76 modules transformed`; built `dist/index.html`, CSS, and JS bundle.
+
 - Whitespace diff check:
   - Command: `git diff --check`
   - Result: passed.
@@ -2313,3 +2315,53 @@ Backend transaction API tests:
   - Command: `npm run build`
   - Result: passed.
   - Output summary: `76 modules transformed`; built `dist/index.html`, CSS, and JS bundle.
+
+## 2026-10-11 - T-010 Production Financial API 502 Diagnostics
+
+### Trace
+
+- `GET /api/secure/data` enters `backend/api.py`, verifies the bearer token through `get_current_user`, then calls `financial.dashboard_data(financial.get_financial_client(current_user))`.
+- `backend/postgres/financial.py` builds a Supabase REST client from `SUPABASE_URL` and `SUPABASE_ANON_KEY`, sends the verified user's access token as the bearer token, and relies on PostgREST/RLS for user isolation.
+- Dashboard data performs two PostgREST reads:
+  - `GET /rest/v1/transactions?select=id,transaction_date,amount,note,type,categories(id,name,type)&order=transaction_date.desc`
+  - `GET /rest/v1/budgets?select=id,amount,period,start_date,end_date,categories(id,name,type)&order=start_date.desc`
+
+### Diagnostic Change
+
+- Added sanitized server-side warning logs for Supabase financial storage failures.
+- Logs include method, PostgREST path with filter values redacted, upstream status code, safe upstream error code/message, failure reason, and exception type where applicable.
+- Logs do not include authorization headers, API keys, bearer tokens, emails, request payloads, or financial row data.
+- Client-facing storage failures remain the generic `502 {"detail":"Supabase financial storage request failed."}` response.
+- Backend JWT verification, RLS use, and user isolation were not weakened.
+
+### Production Configuration And Schema Checks
+
+- Backend production still requires `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_JWT_AUDIENCE`; values were not printed.
+- `SUPABASE_URL` drives both PostgREST base URL and JWT issuer/JWKS URL derivation.
+- `SUPABASE_ANON_KEY` is sent as the public `apikey`; the verified user's access token remains the bearer token for RLS.
+- `SUPABASE_JWT_AUDIENCE` defaults to `authenticated`.
+- Hosted schema must contain the migrated `public.categories`, `public.transactions`, and `public.budgets` tables with the queried columns and relationships from `supabase/migrations/001_initial_schema.sql`.
+- No production migrations were run.
+
+### Validation Results
+
+- Secure financial API tests:
+  - Command: `pytest -q backend\tests\test_secure_financial_api.py -rs`
+  - Result: passed.
+  - Output summary: `16 passed in 0.38s`.
+  - Coverage added for upstream `401`, upstream `403`, missing relation, missing column, timeout, malformed JSON, and unexpected JSON shape using mocked PostgREST calls only.
+- Python compile check:
+  - Command: `python -m compileall backend`
+  - Result: passed.
+- Backend tests:
+  - Command: `pytest -q backend\tests -rs`
+  - Result: passed with local Supabase integration skips in the default shell.
+  - Output summary: `51 passed, 4 skipped in 1.33s`.
+  - Skip reason: shell did not provide `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` for local-only RLS integration tests.
+
+### Remaining Production Checks
+
+- Deploy these diagnostics, reproduce `GET /api/secure/data`, and inspect server logs for the upstream status and safe PostgREST code/message.
+- Confirm the hosted Supabase project has the expected migrations applied and PostgREST schema cache refreshed.
+- Confirm Render has `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_JWT_AUDIENCE` configured for the same Supabase project that issued the frontend user's token.
+- Do not consider the production issue fixed until a hosted smoke test for `GET /api/secure/data` succeeds.

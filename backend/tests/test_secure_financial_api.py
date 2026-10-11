@@ -1,4 +1,8 @@
+import logging
 from types import SimpleNamespace
+
+import pytest
+import requests
 
 from backend import db
 from backend.api import app
@@ -10,16 +14,19 @@ def user(user_id: str, email: str, token: str) -> AuthenticatedUser:
 
 
 class MockResponse:
-    def __init__(self, status_code=200, data=None, text=""):
+    def __init__(self, status_code=200, data=None, text="", json_error: Exception | None = None):
         self.status_code = status_code
         self._data = data if data is not None else []
         self.text = text
+        self._json_error = json_error
 
     def json(self):
+        if self._json_error:
+            raise self._json_error
         return self._data
 
 
-def configure(client, monkeypatch, current_user: AuthenticatedUser, responses: list[MockResponse]):
+def configure(client, monkeypatch, current_user: AuthenticatedUser, responses: list[MockResponse | Exception]):
     monkeypatch.setenv("SUPABASE_URL", "http://127.0.0.1:56000")
     monkeypatch.setenv("SUPABASE_ANON_KEY", "local-anon-key")
     app.dependency_overrides[get_current_user] = lambda: current_user
@@ -27,7 +34,10 @@ def configure(client, monkeypatch, current_user: AuthenticatedUser, responses: l
 
     def fake_request(method, url, **kwargs):
         calls.append(SimpleNamespace(method=method, url=url, kwargs=kwargs))
-        return responses.pop(0)
+        response = responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
 
     monkeypatch.setattr("backend.postgres.financial.requests.request", fake_request)
     return calls
@@ -215,3 +225,117 @@ def test_secure_api_does_not_fallback_to_sqlite_when_postgrest_fails(client, mon
     assert response.status_code == 502
     assert "sqlite row must not leak" not in response.text
     assert len(db.all_rows()) == 1
+
+
+@pytest.mark.parametrize("upstream_status", [401, 403])
+def test_secure_dashboard_logs_upstream_auth_errors_without_leaking_secrets(
+    client,
+    monkeypatch,
+    caplog,
+    upstream_status,
+):
+    caplog.set_level(logging.WARNING, logger="backend.postgres.financial")
+    configure(client, monkeypatch, user("user-a", "a@example.com", "token-a"), [
+        MockResponse(
+            status_code=upstream_status,
+            data={
+                "code": "PGRST301",
+                "message": "Bearer token-a rejected for a@example.com",
+            },
+        ),
+    ])
+
+    response = client.get("/api/secure/data")
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Supabase financial storage request failed."
+    record = caplog.records[-1]
+    assert record.upstream_status_code == upstream_status
+    assert record.upstream_error_code == "PGRST301"
+    assert record.upstream_error_message == "Bearer [REDACTED] rejected for [REDACTED_EMAIL]"
+    assert record.upstream_path.startswith("transactions?select=")
+    assert "token-a" not in caplog.text
+    assert "a@example.com" not in caplog.text
+    assert "local-anon-key" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("status_code", "error_code", "message"),
+    [
+        (404, "PGRST205", "Could not find the table public.transactions in the schema cache"),
+        (400, "42703", "column transactions.transaction_date does not exist"),
+    ],
+)
+def test_secure_dashboard_logs_schema_errors_but_keeps_generic_502(
+    client,
+    monkeypatch,
+    caplog,
+    status_code,
+    error_code,
+    message,
+):
+    caplog.set_level(logging.WARNING, logger="backend.postgres.financial")
+    configure(client, monkeypatch, user("user-a", "a@example.com", "token-a"), [
+        MockResponse(status_code=status_code, data={"code": error_code, "message": message}),
+    ])
+
+    response = client.get("/api/secure/data")
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Supabase financial storage request failed."
+    record = caplog.records[-1]
+    assert record.upstream_status_code == status_code
+    assert record.upstream_error_code == error_code
+    assert record.upstream_error_message == message
+    assert record.upstream_path.startswith("transactions?select=")
+
+
+def test_secure_dashboard_logs_timeout_without_leaking_request_headers(client, monkeypatch, caplog):
+    caplog.set_level(logging.WARNING, logger="backend.postgres.financial")
+    configure(client, monkeypatch, user("user-a", "a@example.com", "token-a"), [
+        requests.Timeout("request timed out for token-a"),
+    ])
+
+    response = client.get("/api/secure/data")
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Supabase financial storage request failed."
+    record = caplog.records[-1]
+    assert record.upstream_status_code is None
+    assert record.upstream_failure_reason == "timeout"
+    assert record.upstream_exception_type == "Timeout"
+    assert "token-a" not in caplog.text
+    assert "Authorization" not in caplog.text
+    assert "apikey" not in caplog.text
+
+
+def test_secure_dashboard_rejects_and_logs_malformed_postgrest_json(client, monkeypatch, caplog):
+    caplog.set_level(logging.WARNING, logger="backend.postgres.financial")
+    configure(client, monkeypatch, user("user-a", "a@example.com", "token-a"), [
+        MockResponse(status_code=200, json_error=ValueError("not json")),
+    ])
+
+    response = client.get("/api/secure/data")
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Supabase financial storage request failed."
+    record = caplog.records[-1]
+    assert record.upstream_status_code == 200
+    assert record.upstream_failure_reason == "malformed_json"
+    assert record.upstream_path.startswith("transactions?select=")
+
+
+def test_secure_dashboard_rejects_and_logs_unexpected_postgrest_json_shape(client, monkeypatch, caplog):
+    caplog.set_level(logging.WARNING, logger="backend.postgres.financial")
+    configure(client, monkeypatch, user("user-a", "a@example.com", "token-a"), [
+        MockResponse(status_code=200, data={"unexpected": "object"}),
+    ])
+
+    response = client.get("/api/secure/data")
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Supabase financial storage request failed."
+    record = caplog.records[-1]
+    assert record.upstream_status_code == 200
+    assert record.upstream_failure_reason == "unexpected_json_shape"
+    assert record.upstream_path.startswith("transactions?select=")

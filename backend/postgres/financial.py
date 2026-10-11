@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
+import re
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -19,6 +21,14 @@ except ImportError:
     from auth import AuthenticatedUser
     from config import SupabaseSettings, get_supabase_settings
     from schemas import BudgetCreate, BudgetUpdate, TransactionCreate, TransactionUpdate
+
+
+logger = logging.getLogger(__name__)
+STORAGE_ERROR_DETAIL = "Supabase financial storage request failed."
+_EMAIL_PATTERN = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+_BEARER_PATTERN = re.compile(r"Bearer\s+[A-Za-z0-9._~+/=-]+", re.IGNORECASE)
+_JWT_PATTERN = re.compile(r"\beyJ[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+){1,2}\b")
+_FILTER_PATTERN = re.compile(r"((?:^|[?&])[\w.]+=(?:eq|neq|gt|gte|lt|lte|like|ilike|in)\.)[^&]+")
 
 
 @dataclass(frozen=True)
@@ -42,25 +52,93 @@ class SupabaseRestClient:
         }
 
     def request(self, method: str, path: str, **kwargs):
+        upstream_path = path.lstrip("/")
         headers = {
             **self.headers,
             **kwargs.pop("headers", {}),
         }
-        response = requests.request(
-            method,
-            f"{self.rest_url}/{path.lstrip('/')}",
-            headers=headers,
-            timeout=10,
-            **kwargs,
-        )
-
-        if response.status_code in {401, 403}:
-            raise HTTPException(status_code=response.status_code, detail="Supabase authorization failed.")
+        try:
+            response = requests.request(
+                method,
+                f"{self.rest_url}/{upstream_path}",
+                headers=headers,
+                timeout=10,
+                **kwargs,
+            )
+            response.request_method = method.upper()
+            response.request_path = upstream_path
+        except requests.Timeout as exc:
+            _log_storage_failure(method, upstream_path, reason="timeout", exc=exc)
+            raise _storage_error() from exc
+        except requests.RequestException as exc:
+            _log_storage_failure(method, upstream_path, reason="request_exception", exc=exc)
+            raise _storage_error() from exc
 
         if response.status_code >= 400:
-            raise HTTPException(status_code=502, detail="Supabase financial storage request failed.")
+            _log_storage_failure(
+                method,
+                upstream_path,
+                status_code=response.status_code,
+                reason="http_error",
+                response=response,
+            )
+            raise _storage_error()
 
         return response
+
+
+def _storage_error() -> HTTPException:
+    return HTTPException(status_code=502, detail=STORAGE_ERROR_DETAIL)
+
+
+def _redact(value: Any) -> str:
+    text = str(value or "")
+    text = _BEARER_PATTERN.sub("Bearer [REDACTED]", text)
+    text = _JWT_PATTERN.sub("[REDACTED_JWT]", text)
+    text = _EMAIL_PATTERN.sub("[REDACTED_EMAIL]", text)
+    text = _FILTER_PATTERN.sub(r"\1[REDACTED]", text)
+    return text[:300]
+
+
+def _safe_upstream_error(response) -> dict[str, str | None]:
+    try:
+        payload = response.json()
+    except ValueError:
+        return {"code": None, "message": "non_json_error_response"}
+
+    if not isinstance(payload, dict):
+        return {"code": None, "message": "unexpected_error_shape"}
+
+    code = payload.get("code") or payload.get("error_code") or payload.get("error")
+    message = payload.get("message") or payload.get("msg") or payload.get("error_description")
+    return {
+        "code": _redact(code) if code else None,
+        "message": _redact(message) if message else None,
+    }
+
+
+def _log_storage_failure(
+    method: str,
+    path: str,
+    *,
+    reason: str,
+    status_code: int | None = None,
+    response=None,
+    exc: BaseException | None = None,
+) -> None:
+    error = _safe_upstream_error(response) if response is not None else {"code": None, "message": None}
+    logger.warning(
+        "Supabase financial storage request failed",
+        extra={
+            "upstream_method": method.upper(),
+            "upstream_path": _redact(path),
+            "upstream_status_code": status_code,
+            "upstream_error_code": error["code"],
+            "upstream_error_message": error["message"],
+            "upstream_failure_reason": reason,
+            "upstream_exception_type": type(exc).__name__ if exc else None,
+        },
+    )
 
 
 def get_financial_client(user: AuthenticatedUser) -> SupabaseRestClient:
@@ -68,8 +146,28 @@ def get_financial_client(user: AuthenticatedUser) -> SupabaseRestClient:
 
 
 def _json(response) -> list[dict[str, Any]]:
-    data = response.json()
-    return data if isinstance(data, list) else []
+    try:
+        data = response.json()
+    except ValueError as exc:
+        _log_storage_failure(
+            getattr(response, "request_method", "GET"),
+            getattr(response, "request_path", getattr(response, "url", "unknown")),
+            status_code=getattr(response, "status_code", None),
+            reason="malformed_json",
+            exc=exc,
+        )
+        raise _storage_error() from exc
+
+    if not isinstance(data, list):
+        _log_storage_failure(
+            getattr(response, "request_method", "GET"),
+            getattr(response, "request_path", getattr(response, "url", "unknown")),
+            status_code=getattr(response, "status_code", None),
+            reason="unexpected_json_shape",
+        )
+        raise _storage_error()
+
+    return data
 
 
 def _affected_rows(response, detail: str = "Transaction not found") -> list[dict[str, Any]]:
