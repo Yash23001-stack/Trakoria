@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { AuthContext, type AuthContextValue } from './auth-context';
+import { fetchAuthenticatedIdentity, type BackendIdentity } from '../services/api';
 import { createSupabaseBrowserClient } from '../services/supabase';
 
 function authErrorMessage(error: unknown, fallback: string): string {
@@ -18,8 +19,12 @@ function redirectUrl(): string {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [client, setClient] = useState<SupabaseClient | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [backendIdentity, setBackendIdentity] = useState<BackendIdentity | null>(null);
+  const [identityLoading, setIdentityLoading] = useState(false);
+  const [identityError, setIdentityError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const verificationSequence = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -45,6 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
         setSession(nextSession);
+        if (!nextSession) {
+          setBackendIdentity(null);
+          setIdentityError(null);
+          setIdentityLoading(false);
+        }
         setError(null);
         setLoading(false);
       });
@@ -63,6 +73,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active = false;
     };
   }, []);
+
+  const verifyBackendIdentity = useCallback(async () => {
+    return fetchAuthenticatedIdentity(session?.access_token);
+  }, [session?.access_token]);
+
+  useEffect(() => {
+    const token = session?.access_token;
+    const sequence = verificationSequence.current + 1;
+    verificationSequence.current = sequence;
+
+    if (!token) {
+      setBackendIdentity(null);
+      setIdentityError(null);
+      setIdentityLoading(false);
+      return;
+    }
+
+    setBackendIdentity(null);
+    setIdentityError(null);
+    setIdentityLoading(true);
+
+    void fetchAuthenticatedIdentity(token)
+      .then((identity) => {
+        if (verificationSequence.current !== sequence) {
+          return;
+        }
+
+        setBackendIdentity(identity);
+        setIdentityError(null);
+      })
+      .catch((verificationError) => {
+        if (verificationSequence.current !== sequence) {
+          return;
+        }
+
+        setBackendIdentity(null);
+        setIdentityError(authErrorMessage(verificationError, 'Unable to verify backend identity.'));
+      })
+      .finally(() => {
+        if (verificationSequence.current === sequence) {
+          setIdentityLoading(false);
+        }
+      });
+  }, [session?.access_token]);
 
   const requireClient = useCallback(() => {
     if (!client) {
@@ -125,19 +179,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setSession(null);
+    setBackendIdentity(null);
+    setIdentityError(null);
+    setIdentityLoading(false);
   }, [requireClient]);
 
   const value = useMemo<AuthContextValue>(() => ({
     session,
     user: session?.user ?? null,
+    backendIdentity,
     loading,
+    identityLoading,
+    identityVerified: Boolean(backendIdentity && !identityLoading && !identityError),
+    identityError,
     error,
     signUp,
     signIn,
     signInWithGoogle,
     signOut,
+    verifyBackendIdentity,
     clearError: () => setError(null),
-  }), [error, loading, session, signIn, signInWithGoogle, signOut, signUp]);
+  }), [
+    backendIdentity,
+    error,
+    identityError,
+    identityLoading,
+    loading,
+    session,
+    signIn,
+    signInWithGoogle,
+    signOut,
+    signUp,
+    verifyBackendIdentity,
+  ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

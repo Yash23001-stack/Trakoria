@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { MouseEvent } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import ActivitySidebar from '../components/ActivitySidebar';
 import AddTransactionPanel from '../components/AddTransactionPanel';
 import CalendarView from '../components/CalendarView';
@@ -12,20 +12,26 @@ import type { AppConfig, Transaction, TransactionInput } from '../types/transact
 import { currentMonthKey } from '../utils/date';
 
 interface DashboardPageProps {
-  pin: string;
+  accountBoard: ReactNode;
+  accountEmail?: string;
   txns: Transaction[];
   config: AppConfig;
+  financialError: string | null;
+  identityVerified: boolean;
   toast: string | null;
   onLogout: () => void;
   onNotify: (message: string) => void;
   onAddTransaction: (transaction: TransactionInput) => Promise<void>;
-  onDeleteTransaction: (transactionId: number) => Promise<void>;
+  onDeleteTransaction: (transactionId: string) => Promise<void>;
 }
 
 export default function DashboardPage({
-  pin,
+  accountBoard,
+  accountEmail,
   txns,
   config,
+  financialError,
+  identityVerified,
   toast,
   onLogout,
   onNotify,
@@ -41,7 +47,7 @@ export default function DashboardPage({
     return txnMonthYear === selectedMonth;
   }), [selectedMonth, txns]);
 
-  const handleDelete = async (event: MouseEvent<HTMLButtonElement>, id: number) => {
+  const handleDelete = async (event: MouseEvent<HTMLButtonElement>, id: string) => {
     event.stopPropagation();
     if (!window.confirm('Permanently delete this transaction?')) return;
 
@@ -62,11 +68,16 @@ export default function DashboardPage({
   return (
     <DashboardLayout toast={toast}>
       <Header
-        pin={pin}
         handleLogout={onLogout}
         selectedMonth={selectedMonth}
         setSelectedMonth={setSelectedMonth}
       />
+      <div className="mb-6">{accountBoard}</div>
+      {financialError && (
+        <div role="alert" className="border border-red-900 bg-red-950/20 p-3 mb-6 text-[10px] uppercase tracking-widest text-red-400">
+          {financialError}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div className="xl:col-span-3 flex flex-col gap-6">
@@ -92,7 +103,12 @@ export default function DashboardPage({
         </div>
 
         <div className="xl:col-span-1">
-          <ActivitySidebar txns={currentMonthTxns} currency={config.currency} pin={pin} />
+          <ActivitySidebar
+            txns={currentMonthTxns}
+            currency={config.currency}
+            accountEmail={accountEmail}
+            identityVerified={identityVerified}
+          />
         </div>
       </div>
     </DashboardLayout>

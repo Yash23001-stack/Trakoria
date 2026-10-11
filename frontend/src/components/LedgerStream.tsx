@@ -8,7 +8,7 @@ interface LedgerStreamProps {
   config: AppConfig;
   selectedDate: string;
   setSelectedDate: (date: string) => void;
-  handleDelete: (event: MouseEvent<HTMLButtonElement>, id: number) => void;
+  handleDelete: (event: MouseEvent<HTMLButtonElement>, id: string) => void;
 }
 
 export default function LedgerStream({ txns, config, selectedDate, setSelectedDate, handleDelete }: LedgerStreamProps) {
@@ -38,7 +38,7 @@ export default function LedgerStream({ txns, config, selectedDate, setSelectedDa
     }
   }
 
-  const sortedTxns = [...displayTxns].sort((a, b) => b.id - a.id);
+  const sortedTxns = [...displayTxns].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
 
   return (
     <div className="border border-zinc-800 bg-[#0a0a0a] flex flex-col h-[500px]">

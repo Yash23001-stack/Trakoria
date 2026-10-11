@@ -4,7 +4,12 @@ import type { Session } from '@supabase/supabase-js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../../auth/AuthProvider';
 import AuthPanel from '../../components/auth/AuthPanel';
+import { fetchAuthenticatedIdentity } from '../../services/api';
 import { createSupabaseBrowserClient } from '../../services/supabase';
+
+vi.mock('../../services/api', () => ({
+  fetchAuthenticatedIdentity: vi.fn(),
+}));
 
 vi.mock('../../services/supabase', () => ({
   createSupabaseBrowserClient: vi.fn(),
@@ -54,6 +59,10 @@ describe('AuthPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv('VITE_SUPABASE_REDIRECT_URL', 'http://localhost:5175/auth/callback');
+    vi.mocked(fetchAuthenticatedIdentity).mockResolvedValue({
+      user_id: 'aaee5e94-d359-42d4-8896-8f92eb6c4c24',
+      email: 'auth@example.com',
+    });
   });
 
   it('signs in with email and password', async () => {

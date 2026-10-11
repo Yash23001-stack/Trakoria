@@ -1,13 +1,12 @@
 export type TransactionType = 'income' | 'expense';
 
 export interface Transaction {
-  id: number;
+  id: string;
   date: string;
   category: string;
   amount: number;
   note: string;
   type: TransactionType | string;
-  chat_id?: number;
 }
 
 export interface AppConfig {

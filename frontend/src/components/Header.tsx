@@ -1,30 +1,10 @@
-import { downloadApiFile } from '../services/api';
-
 interface HeaderProps {
-  pin: string;
   handleLogout: () => void;
   selectedMonth: string;
   setSelectedMonth: (value: string) => void;
 }
 
-export default function Header({ pin, handleLogout, selectedMonth, setSelectedMonth }: HeaderProps) {
-  const handleExport = async () => {
-    try {
-      const blob = await downloadApiFile(pin, '/api/export');
-      const url = window.URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `Trakoria_Export_${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error(error);
-      alert('System Error: Could not generate data export.');
-    }
-  };
-
+export default function Header({ handleLogout, selectedMonth, setSelectedMonth }: HeaderProps) {
   return (
     <header className="border-b border-zinc-800 pb-5 mb-8 flex flex-col lg:flex-row justify-between lg:items-end gap-4">
       <div className="flex flex-col sm:flex-row sm:items-end gap-6">
@@ -63,12 +43,6 @@ export default function Header({ pin, handleLogout, selectedMonth, setSelectedMo
           className="text-[10px] tracking-widest border border-white bg-white px-4 py-1.5 font-bold text-black uppercase hover:bg-zinc-300 transition-colors cursor-pointer"
         >
           + Add Txn
-        </button>
-        <button
-          onClick={handleExport}
-          className="text-[10px] tracking-widest border border-zinc-700 bg-[#0a0a0a] px-3 py-1.5 font-bold text-zinc-300 uppercase hover:bg-white hover:text-black transition-colors cursor-pointer"
-        >
-          Export CSV
         </button>
         <button
           onClick={handleLogout}

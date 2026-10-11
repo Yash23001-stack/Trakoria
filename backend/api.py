@@ -1,16 +1,21 @@
 from fastapi import FastAPI, Header, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import json
 import os
 import csv
 import io
 try:
     from . import db
-    from .schemas import TransactionCreate
+    from .auth import AuthenticatedUser, get_current_user
+    from .postgres import financial
+    from .schemas import TransactionCreate, TransactionUpdate
 except ImportError:
     import db
-    from schemas import TransactionCreate
+    from auth import AuthenticatedUser, get_current_user
+    from postgres import financial
+    from schemas import TransactionCreate, TransactionUpdate
 from fastapi.responses import FileResponse
 from datetime import datetime
 from dotenv import load_dotenv
@@ -45,8 +50,69 @@ def verify_pin(x_pin: str = Header(None)):
             detail="Unauthorized: Invalid PIN"
         )
 
+
+def block_legacy_sqlite_financial_access():
+    """Temporarily blocks shared SQLite financial routes until per-user storage is ready."""
+    raise HTTPException(
+        status_code=403,
+        detail="Legacy SQLite financial access is disabled until user-isolated storage is available.",
+    )
+
+
+@app.get("/api/auth/me")
+def get_authenticated_user(current_user: AuthenticatedUser = Depends(get_current_user)):
+    return {
+        "user_id": current_user.user_id,
+        "email": current_user.email,
+    }
+
+
+@app.get("/api/secure/data")
+def get_secure_dashboard_data(current_user: AuthenticatedUser = Depends(get_current_user)):
+    return financial.dashboard_data(financial.get_financial_client(current_user))
+
+
+@app.post("/api/secure/transactions")
+def create_secure_transaction(
+    transaction: TransactionCreate,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    return financial.create_transaction(financial.get_financial_client(current_user), transaction)
+
+
+@app.patch("/api/secure/transactions/{txn_id}")
+def update_secure_transaction(
+    txn_id: str,
+    transaction: TransactionUpdate,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    return financial.update_transaction(financial.get_financial_client(current_user), txn_id, transaction)
+
+
+@app.delete("/api/secure/transactions/{txn_id}")
+def delete_secure_transaction(txn_id: str, current_user: AuthenticatedUser = Depends(get_current_user)):
+    return financial.delete_transaction(financial.get_financial_client(current_user), txn_id)
+
+
+@app.get("/api/secure/export")
+def export_secure_csv(current_user: AuthenticatedUser = Depends(get_current_user)):
+    return StreamingResponse(
+        iter([financial.export_csv(financial.get_financial_client(current_user))]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=Trakoria_export.csv"},
+    )
+
+
+@app.get("/api/secure/backup")
+def create_secure_backup(current_user: AuthenticatedUser = Depends(get_current_user)):
+    return JSONResponse(
+        financial.backup_json(financial.get_financial_client(current_user)),
+        headers={"Content-Disposition": "attachment; filename=trakoria_backup.json"},
+    )
+
+
 # --- 1. THE DASHBOARD DATA ROUTE ---
-@app.get("/api/data", dependencies=[Depends(verify_pin)])
+@app.get("/api/data", dependencies=[Depends(verify_pin), Depends(block_legacy_sqlite_financial_access)])
 def get_dashboard_data(): # type: ignore
     db.init_db()
     transactions = db.all_rows()
@@ -64,13 +130,13 @@ def get_dashboard_data(): # type: ignore
     } # type: ignore
 
 # --- 2. THE DELETE TRANSACTION ROUTE ---
-@app.delete("/api/transactions/{txn_id}", dependencies=[Depends(verify_pin)])
+@app.delete("/api/transactions/{txn_id}", dependencies=[Depends(verify_pin), Depends(block_legacy_sqlite_financial_access)])
 def delete_transaction(txn_id: int):
     db.delete_txn(txn_id)
     return {"status": "success"}
 
 
-@app.post("/api/transactions", dependencies=[Depends(verify_pin)])
+@app.post("/api/transactions", dependencies=[Depends(verify_pin), Depends(block_legacy_sqlite_financial_access)])
 def create_transaction(transaction: TransactionCreate):
     config_data = get_config()
     allowed_categories = set(config_data.get("budgets", {}).keys()) | {"other"}
@@ -89,7 +155,7 @@ def create_transaction(transaction: TransactionCreate):
     return {"status": "success"}
 
 # --- 3. THE EXPORT CSV ROUTE ---
-@app.get("/api/export", dependencies=[Depends(verify_pin)])
+@app.get("/api/export", dependencies=[Depends(verify_pin), Depends(block_legacy_sqlite_financial_access)])
 def export_csv():
     transactions = db.all_rows()
     
@@ -113,7 +179,7 @@ def export_csv():
         headers={"Content-Disposition": "attachment; filename=Personal Expense Tracer_export.csv"}
     ) # type: ignore
 # --- 4. THE SQLITE SNAPSHOT ROUTE ---
-@app.get("/api/backup", dependencies=[Depends(verify_pin)])
+@app.get("/api/backup", dependencies=[Depends(verify_pin), Depends(block_legacy_sqlite_financial_access)])
 def create_snapshot():
     # Grabs the live expenses.db file and forces a download
     date_str = datetime.now().strftime("%Y_%m_%d")

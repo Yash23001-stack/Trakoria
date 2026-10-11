@@ -3,7 +3,12 @@ import type { Session } from '@supabase/supabase-js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../../auth/AuthProvider';
 import AuthCallbackPage from '../../pages/AuthCallbackPage';
+import { fetchAuthenticatedIdentity } from '../../services/api';
 import { createSupabaseBrowserClient } from '../../services/supabase';
+
+vi.mock('../../services/api', () => ({
+  fetchAuthenticatedIdentity: vi.fn(),
+}));
 
 vi.mock('../../services/supabase', () => ({
   createSupabaseBrowserClient: vi.fn(),
@@ -54,6 +59,10 @@ describe('AuthCallbackPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.history.replaceState(null, '', '/');
+    vi.mocked(fetchAuthenticatedIdentity).mockResolvedValue({
+      user_id: '8b5bdaaa-f7d6-4231-9a56-5801ba9f66ea',
+      email: 'callback@example.com',
+    });
   });
 
   it('shows Supabase callback errors from the URL', async () => {

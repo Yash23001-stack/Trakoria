@@ -6,14 +6,15 @@ import LiveFeed from './activity/LiveFeed';
 interface ActivitySidebarProps {
   txns: Transaction[];
   currency: string;
-  pin: string;
+  accountEmail?: string;
+  identityVerified: boolean;
 }
 
-export default function ActivitySidebar({ txns, currency, pin }: ActivitySidebarProps) {
+export default function ActivitySidebar({ txns, currency, accountEmail, identityVerified }: ActivitySidebarProps) {
   return (
     <div className="flex flex-col gap-4 h-full">
       <BotStatus />
-      <DataOperations txns={txns} pin={pin} />
+      <DataOperations txns={txns} accountEmail={accountEmail} identityVerified={identityVerified} />
       <LiveFeed txns={txns} currency={currency} />
     </div>
   );

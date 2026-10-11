@@ -7,7 +7,7 @@ interface LiveFeedProps {
 }
 
 export default function LiveFeed({ txns, currency }: LiveFeedProps) {
-  const recentTxns = [...txns].sort((a, b) => b.id - a.id).slice(0, 5);
+  const recentTxns = [...txns].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).slice(0, 5);
 
   return (
     <div className="border border-zinc-800 bg-[#0a0a0a] p-4 flex-grow">
@@ -21,7 +21,7 @@ export default function LiveFeed({ txns, currency }: LiveFeedProps) {
 
           return (
             <div key={txn.id} className="text-xs border-l-2 pl-3 py-1 flex flex-col gap-1 border-zinc-800">
-              <span className="text-zinc-600 font-bold">[SYS_T_{txn.id.toString().padStart(4, '0')}]</span>
+              <span className="text-zinc-600 font-bold">[SYS_T_{txn.id.slice(0, 8)}]</span>
               <div className="flex justify-between w-full gap-2">
                 <span className={isExpense ? 'text-zinc-200' : 'text-blue-300'}>
                   {txn.type} {formatINR(toAmount(txn.amount), currency)}

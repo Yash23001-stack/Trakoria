@@ -1,26 +1,16 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { downloadApiFile } from '../../services/api';
 import type { Transaction } from '../../types/transaction';
 import { toAmount } from '../../utils/currency';
 import { downloadBlob } from './download';
 
 interface DataOperationsProps {
   txns: Transaction[];
-  pin: string;
+  accountEmail?: string;
+  identityVerified: boolean;
 }
 
-export default function DataOperations({ txns, pin }: DataOperationsProps) {
-  const handleBackup = async () => {
-    try {
-      const blob = await downloadApiFile(pin, '/api/backup');
-      downloadBlob(blob, `backup_${new Date().toISOString().split('T')[0].replace(/-/g, '_')}.db`);
-    } catch (error) {
-      console.error(error);
-      alert('BACKUP FAILED: Check security pin.');
-    }
-  };
-
+export default function DataOperations({ txns, accountEmail, identityVerified }: DataOperationsProps) {
   const handleCsvExport = () => {
     if (!txns || txns.length === 0) return alert('No data to export.');
     const headers = Object.keys(txns[0]).join(',');
@@ -47,17 +37,17 @@ export default function DataOperations({ txns, pin }: DataOperationsProps) {
       doc.text('Detailed Financial Statement', 14, 26);
       doc.rect(14, 32, 182, 22);
       doc.setFontSize(8);
-      doc.text('Account Holder Name: YASH BHANDARE', 16, 38);
+      doc.text(`Account Email: ${accountEmail || 'Unknown'}`, 16, 38);
       doc.text(`Ledger ID: TRK-${new Date().getFullYear()}`, 16, 44);
       doc.text('Base Currency: INR', 16, 50);
       doc.text(`Statement Date: ${new Date().toLocaleDateString('en-IN')}`, 110, 38);
       doc.text(`Total Records: ${txns.length}`, 110, 44);
-      doc.text('Status: Verified Offline', 110, 50);
+      doc.text(`Status: ${identityVerified ? 'Backend Verified' : 'Unverified'}`, 110, 50);
 
       const sortedTxns = [...txns].sort((a, b) => {
         const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
         if (dateDiff !== 0) return dateDiff;
-        return a.id - b.id;
+        return a.id.localeCompare(b.id);
       });
       let runningBalance = 0;
       const tableRows = sortedTxns.map((txn, index) => {
@@ -121,13 +111,6 @@ export default function DataOperations({ txns, pin }: DataOperationsProps) {
         <h3 className="text-[10px] uppercase tracking-widest text-zinc-400 border-b border-zinc-900 pb-2 mb-3">
           Export
         </h3>
-        <button
-          onClick={handleBackup}
-          className="w-full bg-zinc-900 hover:bg-white hover:text-black text-white border border-zinc-700 p-2 text-[10px] tracking-widest uppercase transition-colors text-left flex justify-between items-center mb-2"
-        >
-          <span>Create Snapshot</span>
-          <span>[.DB]</span>
-        </button>
         <div className="grid grid-cols-3 gap-2">
           <button onClick={handleCsvExport} className="bg-transparent border border-zinc-800 text-zinc-400 hover:text-white p-2 text-[10px] uppercase tracking-widest transition-colors cursor-pointer">
             CSV

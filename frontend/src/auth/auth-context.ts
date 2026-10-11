@@ -1,15 +1,21 @@
 import { createContext } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
+import type { BackendIdentity } from '../services/api';
 
 export type AuthContextValue = {
   session: Session | null;
   user: User | null;
+  backendIdentity: BackendIdentity | null;
   loading: boolean;
+  identityLoading: boolean;
+  identityVerified: boolean;
+  identityError: string | null;
   error: string | null;
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  verifyBackendIdentity: () => Promise<BackendIdentity>;
   clearError: () => void;
 };
 
