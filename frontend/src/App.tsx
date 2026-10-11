@@ -1,8 +1,13 @@
 import { FormEvent, useState } from 'react';
+import { AuthProvider } from './auth/AuthProvider';
+import { useAuth } from './auth/useAuth';
+import AuthPanel from './components/auth/AuthPanel';
 import DashboardPage from './pages/DashboardPage';
+import AuthCallbackPage from './pages/AuthCallbackPage';
 import { useTransactions } from './hooks/useTransactions';
 
-export default function App() {
+function PinGate() {
+  const { loading: authLoading, session, signOut, user } = useAuth();
   const [pin, setPin] = useState(localStorage.getItem('ledger_pin') || '');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginError, setLoginError] = useState('');
@@ -46,14 +51,19 @@ export default function App() {
     localStorage.removeItem('ledger_pin');
     setPin('');
     setIsAuthenticated(false);
+    void signOut();
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-black text-white font-mono flex items-center justify-center uppercase tracking-widest text-xs">
         Authenticating Stream...
       </div>
     );
+  }
+
+  if (!session) {
+    return <AuthPanel />;
   }
 
   if (!isAuthenticated) {
@@ -64,6 +74,7 @@ export default function App() {
 
           <h1 className="text-2xl tracking-[0.2em] uppercase mb-1 font-bold">Trakoria</h1>
           <p className="text-[10px] text-zinc-400 mb-8 tracking-widest uppercase">Track Money. Own Your Data.</p>
+          {user?.email && <p className="text-[10px] text-zinc-500 mb-4 break-all">{user.email}</p>}
 
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <input
@@ -79,6 +90,13 @@ export default function App() {
               Unlock Trakoria
             </button>
           </form>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-4 w-full border border-zinc-800 text-zinc-400 font-bold uppercase text-[10px] tracking-widest py-2 hover:text-white hover:border-zinc-600 transition-colors"
+          >
+            Sign Out
+          </button>
         </div>
       </div>
     );
@@ -95,5 +113,21 @@ export default function App() {
       onAddTransaction={addTransaction}
       onDeleteTransaction={removeTransaction}
     />
+  );
+}
+
+function AppRoutes() {
+  if (window.location.pathname === '/auth/callback') {
+    return <AuthCallbackPage />;
+  }
+
+  return <PinGate />;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   );
 }

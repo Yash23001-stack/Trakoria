@@ -537,3 +537,177 @@ Backend transaction API tests:
 
 - Hosted frontend callback URL is still unresolved and must be configured deliberately once the deployment domain is chosen.
 - T-003.2 still needs the AuthProvider/session layer and UI flow; this task only created the client/config foundation.
+
+## 2026-10-10 - T-003.2
+
+### Objective
+
+- Implement the frontend Supabase authentication layer on top of the T-003.1 browser client.
+- Preserve the existing PIN-based SQLite dashboard and backend API behavior.
+- Do not implement backend JWT verification, transaction migration, database migration, hosted Supabase setting changes, or deployment.
+
+### Scope
+
+- Added an `AuthProvider` with Supabase session restoration, user/session/loading/error state, auth-state subscription, subscription cleanup, sign-up, sign-in, Google OAuth initiation, and sign-out.
+- Added `useAuth` and auth context helpers in focused files under `frontend/src/auth/`.
+- Added an accessible `AuthPanel` for email/password sign-up, email/password sign-in, Google OAuth initiation, loading/disabled states, validation errors, and provider errors.
+- Added a minimal `/auth/callback` path switch in `App.tsx` without introducing a router dependency.
+- Added `AuthCallbackPage` to show Supabase callback errors and return to `/` after a restored session.
+- Kept the existing PIN gate and SQLite dashboard in place after Supabase authentication; Supabase frontend session state is not treated as backend authorization.
+- Added a Supabase sign-out control to the PIN screen so a Supabase-authenticated user can leave before unlocking the legacy dashboard.
+
+### Tests Added
+
+- Added `frontend/src/__tests__/auth/AuthProvider.test.tsx`.
+- Added `frontend/src/__tests__/components/AuthPanel.test.tsx`.
+- Added `frontend/src/__tests__/pages/AuthCallbackPage.test.tsx`.
+- Coverage includes:
+  - Session restoration.
+  - Null/expired session handling.
+  - Auth-state subscription cleanup.
+  - Logout.
+  - Email/password sign-in.
+  - Email/password sign-up.
+  - Validation errors before submission.
+  - Google OAuth initiation with `http://localhost:5175/auth/callback`.
+  - OAuth callback error rendering.
+  - Successful callback session restoration and return to `/`.
+
+### Test Results
+
+- `npm test` from `frontend/`
+  - Result: passed.
+  - Output summary: `Test Files 5 passed (5)`, `Tests 23 passed (23)`.
+- `npm run lint` from `frontend/`
+  - Result: passed.
+- `npx tsc --noEmit` from `frontend/`
+  - Result: passed.
+- `npm run build` from `frontend/`
+  - Result: passed.
+  - Output summary: `846 modules transformed`, built in `712ms`.
+  - Warning: Vite chunk-size warning remains; main app chunk is now `1,210.34 kB` minified because the frontend auth SDK is included.
+- `pytest -q`
+  - Result: passed.
+  - Output summary: `21 passed, 3 skipped in 0.17s`.
+  - Skips: local Supabase RLS integration tests skipped because this run did not set local Supabase credentials.
+- `python -m compileall backend`
+  - Result: passed.
+
+### Security And Compatibility Notes
+
+- No service-role key, JWT signing secret, OAuth client secret, database URL, database password, access token, or refresh token was added to frontend application code.
+- Tests use redacted dummy token strings only.
+- No tokens, passwords, or secrets are logged.
+- Supabase Auth is not connected to the existing shared SQLite financial endpoints.
+- The legacy `x-pin` backend API behavior remains unchanged.
+- Hosted Supabase and hosted production data were not contacted.
+- Live Google OAuth was not browser-verified in this task.
+
+### Remaining Configuration Requirements
+
+- Hosted frontend callback URL is still unresolved and must be configured deliberately once the deployment domain is chosen.
+- Backend JWT verification and transaction API authorization remain future T-003 work.
+
+## 2026-10-11 - T-003.2 Review Fix
+
+### Objective
+
+- Investigate and resolve the Supabase browser warning: `Multiple GoTrueClient instances detected in the same browser context`.
+- Keep React StrictMode enabled.
+- Preserve the existing Supabase environment-variable validation and supported publishable/anonymous key names.
+
+### Investigation
+
+- Reviewed `frontend/src/services/supabase.ts`, `frontend/src/auth/AuthProvider.tsx`, `frontend/src/main.tsx`, and the relevant frontend tests.
+- Confirmed that `frontend/src/main.tsx` wraps the app in `React.StrictMode`.
+- Confirmed that `AuthProvider` creates the Supabase browser client inside a mount effect.
+- In React development StrictMode, mount effects are intentionally run through a mount/cleanup/remount cycle, so the previous implementation could call `createSupabaseBrowserClient()` twice and create multiple Supabase clients in the same browser context.
+- Checked production initialization paths with source search. The only application path creating the browser client is `AuthProvider`; no other production module directly calls `createClient` or `createSupabaseBrowserClient`.
+
+### Cause
+
+- Confirmed cause: repeated `AuthProvider` effect initialization under React StrictMode development lifecycle created more than one Supabase browser client because `createSupabaseBrowserClient()` returned a new client on every call.
+
+### Changes Made
+
+- Updated `frontend/src/services/supabase.ts` to cache a module-level Supabase browser client.
+- Repeated initialization with the same normalized URL/key now reuses the existing client.
+- Missing and placeholder URL/key validation still happens before client creation.
+- If a client already exists and a later call uses a different normalized URL/key, the function throws a clear configuration-change error instead of silently reusing the old client.
+- Added a guarded test-only cache reset helper for isolated service unit tests.
+- Updated `frontend/src/__tests__/services/supabase.test.ts` to cover repeated initialization, `createClient` call count, normalized equivalent configuration reuse, placeholder rejection before creation, and configuration-change failure.
+
+### Test Results
+
+- `npm test -- --runInBand frontend/src/__tests__/services/supabase.test.ts frontend/src/__tests__/auth/AuthProvider.test.tsx`
+  - Result: failed before running tests.
+  - Reason: Vitest does not support the Jest-style `--runInBand` option.
+- `npm test -- frontend/src/__tests__/services/supabase.test.ts frontend/src/__tests__/auth/AuthProvider.test.tsx`
+  - Result: failed before running tests.
+  - Reason: filter paths were passed relative to the repository root while the command ran from `frontend/`.
+- `npm test -- src/__tests__/services/supabase.test.ts src/__tests__/auth/AuthProvider.test.tsx`
+  - Result: passed.
+  - Output summary: `Test Files 2 passed (2)`, `Tests 13 passed (13)`.
+- `npm test`
+  - Result: passed.
+  - Output summary: `Test Files 5 passed (5)`, `Tests 27 passed (27)`.
+- `npm run lint`
+  - Result: passed.
+- `npx tsc --noEmit`
+  - Result: passed.
+- `npm run build`
+  - Result: passed.
+  - Output summary: `846 modules transformed`, built in `1.95s`.
+  - Warning: Vite chunk-size warning remains; main app chunk is `1,210.73 kB` minified.
+
+### Known Limitations
+
+- Browser verification of the warning was not performed in this pass.
+- Hosted Supabase and real financial databases were not contacted.
+
+## 2026-10-11 - T-003.2 Callback Redirect Fix
+
+### Objective
+
+- Fix the Google OAuth callback page getting stuck on `Session restored. Redirecting...`.
+- Preserve existing email/password, Google OAuth initiation, PIN gate, and transaction behavior.
+- Do not modify database migrations.
+
+### Investigation
+
+- Reviewed `frontend/src/App.tsx`, `frontend/src/pages/AuthCallbackPage.tsx`, and `frontend/src/__tests__/pages/AuthCallbackPage.test.tsx`.
+- Confirmed `AppRoutes` chooses the callback view from `window.location.pathname`.
+- Confirmed the previous callback success path used `window.history.replaceState(null, '', '/')` plus a synthetic `popstate` event.
+- Because the app does not subscribe route state to browser history changes, manual history mutation does not guarantee `AppRoutes` rerenders, leaving `AuthCallbackPage` visible.
+
+### Changes Made
+
+- Updated `AuthCallbackPage` to request a real browser redirect to `/` after loading completes with a restored Supabase session and no callback error.
+- The production default redirect uses `window.location.replace('/')`, so a successful callback reloads the app at the root route where Supabase can restore the persisted session.
+- Kept guards so the page does not redirect while loading, without a session, or when a callback error is present.
+- Updated callback tests to verify successful session restoration requests a redirect, callback errors stay visible without redirecting, and missing restored sessions do not redirect.
+
+### Test Results
+
+- `npm test -- src/__tests__/pages/AuthCallbackPage.test.tsx`
+  - Result: failed before assertions completed on the first attempt.
+  - Reason: jsdom does not allow redefining `window.location.replace` with `vi.spyOn`.
+- `npm test -- src/__tests__/pages/AuthCallbackPage.test.tsx`
+  - Result: passed after using an injectable redirect function with the production default preserved.
+  - Output summary: `Test Files 1 passed (1)`, `Tests 3 passed (3)`.
+- `npm test`
+  - Result: passed.
+  - Output summary: `Test Files 5 passed (5)`, `Tests 28 passed (28)`.
+- `npm run lint`
+  - Result: passed.
+- `npx tsc --noEmit`
+  - Result: passed.
+- `npm run build`
+  - Result: passed.
+  - Output summary: `846 modules transformed`, built in `1.07s`.
+  - Warning: Vite chunk-size warning remains; main app chunk is `1,210.76 kB` minified.
+
+### Known Limitations
+
+- Google OAuth was not fully browser-verified in this pass.
+- The callback tests verify redirect behavior and session restoration handling only.
