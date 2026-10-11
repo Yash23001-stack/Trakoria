@@ -2269,3 +2269,47 @@ Backend transaction API tests:
   - Command: `git diff --check`
   - Result: passed.
   - Warning: Git reported LF-to-CRLF conversion warning for `frontend/package-lock.json`.
+
+## 2026-10-11 - T-009 Cloudflare npm 10 Lockfile Compatibility
+
+### Cause
+
+- Cloudflare Pages used Node.js `22.16.0` and npm `10.9.2`, running `npm clean-install --progress=false` from `frontend/`.
+- The npm `11.6.2` repair from T-008 produced a lockfile that npm 11 accepted, but npm 10 still rejected during clean install.
+- Reproduction with npm `10.9.2` in an isolated frontend copy failed with `Missing: @emnapi/runtime@1.11.3 from lock file`.
+- The missing entry was a generated peer/optional dependency selected by top-level `@napi-rs/wasm-runtime@1.1.6`; npm 10 also expected complete bundled optional metadata for `@tailwindcss/oxide-wasm32-wasi`.
+
+### Fix
+
+- Repaired `frontend/package-lock.json` with npm `10.9.2` under Node.js `22.16.0` using `npm install --package-lock-only`.
+- The lockfile now includes the npm 10-resolved `@emnapi/runtime@1.11.3` peer/optional entry and the bundled `@emnapi/core` / `@emnapi/runtime` metadata under `@tailwindcss/oxide-wasm32-wasi`.
+- No `frontend/package.json` dependency ranges, root package files, application source files, environment files, credentials, or local data files were changed.
+
+### Validation Results
+
+- Cloudflare failure reproduction:
+  - Command: `npm clean-install --progress=false` with npm `10.9.2` in a temp copy containing only the pre-fix `frontend/package.json` and `frontend/package-lock.json`.
+  - Result: failed as expected.
+  - Output summary: `Missing: @emnapi/runtime@1.11.3 from lock file`.
+- Frontend npm 10 clean install:
+  - Command: `npm clean-install --progress=false --cache C:\ExpenseTracker\.trakoria\npm-cache` with npm `10.9.2` in a temp copy containing only the repaired `frontend/package.json` and `frontend/package-lock.json`.
+  - Result: passed.
+  - Output summary: `added 310 packages, and audited 311 packages in 8s`; `6 vulnerabilities (1 moderate, 5 high)` reported by npm audit.
+- Root npm 10 clean install:
+  - Command: `npm clean-install --progress=false --cache C:\ExpenseTracker\.trakoria\npm-cache` with npm `10.9.2` in a temp copy containing only root `package.json` and `package-lock.json`.
+  - Result: passed.
+  - Output summary: `added 32 packages, and audited 33 packages in 4s`; `1 moderate severity vulnerability` reported by npm audit.
+- Frontend tests:
+  - Command: `npm test -- --run`
+  - Result: passed.
+  - Output summary: `Test Files 11 passed (11)`, `Tests 67 passed (67)`.
+- Frontend lint:
+  - Command: `npm run lint`
+  - Result: passed.
+- Frontend TypeScript:
+  - Command: `npx tsc -p tsconfig.json --noEmit`
+  - Result: passed.
+- Frontend production build:
+  - Command: `npm run build`
+  - Result: passed.
+  - Output summary: `76 modules transformed`; built `dist/index.html`, CSS, and JS bundle.
