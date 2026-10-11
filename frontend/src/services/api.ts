@@ -1,6 +1,33 @@
 import type { Budget, BudgetInput, DashboardData, TransactionInput, TransactionUpdateInput } from '../types/transaction';
 
-export const API_BASE = import.meta.env.VITE_API_BASE_URL || `http://${window.location.hostname}:8000`;
+const PLACEHOLDER_API_URLS = new Set([
+  '',
+  'https://your-render-service.onrender.com',
+  'https://your-backend.example.com',
+]);
+
+function isLocalHost(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+}
+
+export function resolveApiBaseUrl(
+  configuredUrl: string | undefined = import.meta.env.VITE_API_BASE_URL,
+  hostname: string = window.location.hostname,
+): string {
+  const normalized = configuredUrl?.trim().replace(/\/+$/, '') ?? '';
+
+  if (normalized && !PLACEHOLDER_API_URLS.has(normalized)) {
+    return normalized;
+  }
+
+  if (isLocalHost(hostname)) {
+    return `http://${hostname}:8000`;
+  }
+
+  throw new Error('Missing VITE_API_BASE_URL for hosted Trakoria frontend.');
+}
+
+export const API_BASE = resolveApiBaseUrl();
 
 export type BackendIdentity = {
   user_id: string;

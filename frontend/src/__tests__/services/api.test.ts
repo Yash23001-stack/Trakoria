@@ -12,6 +12,7 @@ import {
   updateSecureBudget,
   fetchAuthenticatedIdentity,
   fetchDashboardData,
+  resolveApiBaseUrl,
 } from '../../services/api';
 
 describe('frontend API helpers', () => {
@@ -225,5 +226,12 @@ describe('frontend API helpers', () => {
       method: 'DELETE',
       headers: { Authorization: 'Bearer secure-access-token' },
     });
+  });
+
+  it('requires an explicit API base URL for hosted frontends', () => {
+    expect(resolveApiBaseUrl('https://render.example.com/', 'trakoria.pages.dev')).toBe('https://render.example.com');
+    expect(resolveApiBaseUrl(undefined, 'localhost')).toBe('http://localhost:8000');
+    expect(() => resolveApiBaseUrl(undefined, 'trakoria.pages.dev')).toThrow(/VITE_API_BASE_URL/);
+    expect(() => resolveApiBaseUrl('https://your-render-service.onrender.com', 'trakoria.pages.dev')).toThrow(/VITE_API_BASE_URL/);
   });
 });

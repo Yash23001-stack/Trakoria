@@ -41,3 +41,22 @@ def get_supabase_settings() -> SupabaseSettings:
         database_url=os.getenv("SUPABASE_DATABASE_URL") or os.getenv("DATABASE_URL"),
         jwt_audience=os.getenv("SUPABASE_JWT_AUDIENCE", "authenticated"),
     )
+
+
+def get_cors_origins() -> list[str]:
+    configured = os.getenv("CORS_ORIGINS", "")
+    origins = [
+        origin.strip().rstrip("/")
+        for origin in configured.split(",")
+        if origin.strip()
+    ]
+
+    if origins:
+        if "*" in origins:
+            raise ValueError("CORS_ORIGINS must list explicit origins; wildcard is not allowed.")
+        return origins
+
+    return [
+        "http://localhost:5175",
+        "http://127.0.0.1:5175",
+    ]

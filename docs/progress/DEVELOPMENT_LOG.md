@@ -2044,3 +2044,137 @@ Backend transaction API tests:
 
 - Budgets native dropdown issue is fixed in code and automated tests.
 - Manual Chrome DevTools verification at `393 x 852` remains recommended before release.
+
+## 2026-10-11 - T-006 Deployment Readiness Audit
+
+### Objective
+
+- Audit Trakoria V2 for staging deployment readiness on Cloudflare Pages and Render.
+- Preserve local development on `localhost:5175`.
+- Avoid deployment, hosted data changes, commits, or secret disclosure.
+
+### Findings
+
+- `backend/api.py` exports `app = FastAPI()`, so Render can start the ASGI app with Uvicorn.
+- Secure financial routes remain under `/api/secure/*` and depend on verified bearer JWT identity.
+- Supabase JWT verification is environment-driven through `SUPABASE_URL` and `SUPABASE_JWT_AUDIENCE`; issuer and JWKS URLs are derived from the configured Supabase project URL.
+- Secure PostgREST financial access uses the Supabase anon key plus the verified user's access token so RLS evaluates requests in the ordinary authenticated context.
+- Frontend code uses public `VITE_` variables only. No frontend service-role key usage was found.
+- Legacy SQLite/PIN routes remain present but contained by the T-003.5 blocker for `/api/data`, `/api/transactions`, `/api/export`, and `/api/backup`.
+- The Telegram bot implementation remains outside the FastAPI app. It should not be run as part of the Render staging web service until the V3 integration is reviewed.
+- Pre-audit deployment blockers found:
+  - wildcard backend CORS,
+  - no backend requirements file for a clean Render install,
+  - no Cloudflare Pages SPA rewrite for `/auth/callback` and `/auth/recovery`,
+  - hosted frontend could fall back to an invalid same-host `:8000` API URL if `VITE_API_BASE_URL` was missing.
+
+### Implementation
+
+- Added explicit CORS origin handling in `backend/config.py`.
+  - `CORS_ORIGINS` is comma-separated.
+  - Wildcard `*` is rejected.
+  - Local defaults remain `http://localhost:5175` and `http://127.0.0.1:5175`.
+- Updated `backend/api.py` to use the CORS allowlist and added `GET /healthz`.
+- Added `backend/requirements.txt` for Render installation.
+- Added `frontend/public/_redirects` with `/* /index.html 200` for Cloudflare Pages SPA deep links.
+- Updated `frontend/src/services/api.ts` so hosted frontends require an explicit `VITE_API_BASE_URL`; localhost still falls back to port `8000`.
+- Updated `.env.example` with deployment-relevant public/local placeholders and CORS configuration.
+- Added backend tests for CORS configuration and health checks.
+- Added frontend API helper tests for hosted API URL behavior.
+
+### Deployment Instructions
+
+- Cloudflare Pages:
+  - Project root: `frontend`.
+  - Build command: `npm run build`.
+  - Build output directory: `dist`.
+  - Required environment variable names:
+    - `VITE_SUPABASE_URL`
+    - `VITE_SUPABASE_PUBLISHABLE_KEY` or `VITE_SUPABASE_ANON_KEY`
+    - `VITE_API_BASE_URL`
+    - `VITE_SUPABASE_REDIRECT_URL`
+    - `VITE_SUPABASE_RECOVERY_REDIRECT_URL`
+- Render web service:
+  - Build command: `pip install -r backend/requirements.txt`.
+  - Start command: `uvicorn backend.api:app --host 0.0.0.0 --port $PORT`.
+  - Required environment variable names:
+    - `SUPABASE_URL`
+    - `SUPABASE_ANON_KEY`
+    - `SUPABASE_JWT_AUDIENCE`
+    - `CORS_ORIGINS`
+    - `APP_PIN`
+  - Do not configure frontend-exposed service-role values.
+  - `SUPABASE_SERVICE_ROLE_KEY` is not required for the deployed secure financial request path and should remain server-only if ever used for an explicitly reviewed backend task.
+- Supabase Auth:
+  - Set hosted Site URL to the Cloudflare Pages staging URL.
+  - Add hosted redirect URLs for `/auth/callback` and `/auth/recovery`.
+  - Preserve local redirect URLs for `http://localhost:5175/auth/callback` and `http://localhost:5175/auth/recovery`.
+  - Configure SMTP and sender-domain verification before claiming hosted password recovery delivery.
+- Database/RLS:
+  - Apply existing migrations only to the intended hosted staging project.
+  - Verify RLS is enabled for `categories`, `transactions`, and `budgets`.
+  - Confirm Supabase backups and staging retention settings in the Supabase dashboard.
+  - Do not import or assign ownership for legacy SQLite records as part of deployment setup.
+
+### Validation Results
+
+- Focused frontend API tests:
+  - Command: `npm test -- api`
+  - Result: passed.
+  - Output summary: `Test Files 1 passed (1)`, `Tests 13 passed (13)`.
+- Focused backend deployment/JWT tests:
+  - Command: `pytest -q backend\tests\test_deployment_config.py backend\tests\test_auth_jwt.py -rs`
+  - Result: passed.
+  - Output summary: `16 passed in 0.71s`.
+- Full frontend tests:
+  - Command: `npm test`
+  - Result: passed.
+  - Output summary: `Test Files 11 passed (11)`, `Tests 67 passed (67)`.
+- Full backend tests:
+  - Command: `pytest -q -rs`
+  - Result: passed with local-Supabase integration skips in the default shell.
+  - Output summary: `44 passed, 4 skipped in 3.30s`.
+  - Skip reason: default shell did not provide `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`.
+- Local Supabase RLS/secure financial subset with local CLI values mapped in-process:
+  - Command: `python -m pytest -q backend\tests\test_supabase_rls_integration.py backend\tests\test_secure_financial_local_integration.py -rs`
+  - Result: passed.
+  - Output summary: `4 passed in 2.92s`.
+- Lint:
+  - Command: `npm run lint`
+  - Result: passed.
+- TypeScript:
+  - Command: `npx tsc --noEmit`
+  - Result: passed.
+- Production build:
+  - Command: `npm run build`
+  - Result: passed.
+  - Output summary: `76 modules transformed`; built `dist/index.html`, CSS, and JS bundle.
+  - Confirmed `frontend/dist/_redirects` exists after build.
+- Python compile check:
+  - Command: `python -m compileall backend`
+  - Result: passed.
+- Supabase schema lint:
+  - Command: `npx supabase db lint --local`
+  - Result: passed.
+  - Output summary: `No schema errors found`.
+- Whitespace diff check:
+  - Command: `git diff --check`
+  - Result: passed.
+  - Warning: Git reported LF-to-CRLF conversion warnings for modified files.
+
+### Readiness
+
+- Cloudflare Pages: NEEDS MANUAL ACTION.
+  - Code/config is ready for SPA routing, but the project must be created/configured with the required public environment variables.
+- Render: NEEDS MANUAL ACTION.
+  - Code/config is ready for a Python web service, but the service must be created/configured with explicit CORS and Supabase environment variables.
+- Supabase Auth: NEEDS MANUAL ACTION.
+  - Hosted redirect URLs, Site URL, and SMTP/sender-domain settings must be configured and tested in the hosted project.
+- Database/RLS: NEEDS MANUAL ACTION.
+  - Local RLS tests passed. Hosted staging migrations, RLS status, and backups must be verified without touching production data.
+
+### Limitations
+
+- No Cloudflare, Render, or hosted Supabase deployment was performed.
+- No hosted browser verification was performed.
+- No production or hosted financial data was read or modified.

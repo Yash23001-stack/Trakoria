@@ -9,11 +9,13 @@ import io
 try:
     from . import db
     from .auth import AuthenticatedUser, get_current_user
+    from .config import get_cors_origins
     from .postgres import financial
     from .schemas import BudgetCreate, BudgetUpdate, TransactionCreate, TransactionUpdate
 except ImportError:
     import db
     from auth import AuthenticatedUser, get_current_user
+    from config import get_cors_origins
     from postgres import financial
     from schemas import BudgetCreate, BudgetUpdate, TransactionCreate, TransactionUpdate
 from fastapi.responses import FileResponse
@@ -28,11 +30,16 @@ app = FastAPI()
 # Allows your React app to talk to this Python server securely
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
 
 def get_config():
     """Loads your settings and API keys from config.json"""
