@@ -2226,3 +2226,46 @@ Backend transaction API tests:
 - Include `docs/progress/DEVELOPMENT_LOG.md`.
 - Include removal of tracked root `node_modules/` files from Git.
 - Keep uncommitted/ignored: `.env`, `frontend/.env.local`, `expenses.db`, caches, Supabase temp state, build output, and local dependency folders.
+
+## 2026-10-11 - T-008 Cloudflare Pages Lockfile Repair
+
+### Cause
+
+- Cloudflare Pages runs from `frontend/` with `npm ci`, which requires `frontend/package.json` and `frontend/package-lock.json` to match exactly.
+- The frontend lockfile was missing generated bundled optional dependency metadata under `@tailwindcss/oxide-wasm32-wasi`, including its bundled `@napi-rs/wasm-runtime` peer metadata for `@emnapi/runtime`.
+- `frontend/package.json` did not require an application dependency change; the inconsistency was in the generated lockfile metadata.
+
+### Fix
+
+- Repaired `frontend/package-lock.json` with npm `11.6.2` using `npm install --package-lock-only`.
+- No application source files, dependency ranges, root package files, environment files, credentials, or local data files were changed.
+- Root `package.json` and `package-lock.json` were checked separately and did not require changes.
+
+### Validation Results
+
+- Frontend isolated install:
+  - Command: `npm ci --cache C:\ExpenseTracker\.trakoria\npm-cache` in a temp copy containing only `frontend/package.json` and `frontend/package-lock.json`.
+  - Result: passed.
+  - Output summary: `added 310 packages, and audited 311 packages in 11s`; `6 vulnerabilities (1 moderate, 5 high)` reported by npm audit.
+- Root isolated install:
+  - Command: `npm ci --cache C:\ExpenseTracker\.trakoria\npm-cache` in a temp copy containing only root `package.json` and `package-lock.json`.
+  - Result: passed.
+  - Output summary: `added 32 packages, and audited 33 packages in 7s`; `1 moderate severity vulnerability` reported by npm audit.
+- Frontend tests:
+  - Command: `npm test -- --run`
+  - Result: passed.
+  - Output summary: `Test Files 11 passed (11)`, `Tests 67 passed (67)`.
+- Frontend lint:
+  - Command: `npm run lint`
+  - Result: passed.
+- Frontend TypeScript:
+  - Command: `npx tsc -p tsconfig.json --noEmit`
+  - Result: passed.
+- Frontend production build:
+  - Command: `npm run build`
+  - Result: passed.
+  - Output summary: `76 modules transformed`; built `dist/index.html`, CSS, and JS bundle.
+- Whitespace diff check:
+  - Command: `git diff --check`
+  - Result: passed.
+  - Warning: Git reported LF-to-CRLF conversion warning for `frontend/package-lock.json`.
