@@ -2178,3 +2178,51 @@ Backend transaction API tests:
 - No Cloudflare, Render, or hosted Supabase deployment was performed.
 - No hosted browser verification was performed.
 - No production or hosted financial data was read or modified.
+
+## 2026-10-11 - T-007 Staging Deployment Prep Audit
+
+### Repository State
+
+- Branch: `main`, tracking `origin/main`.
+- Initial working tree: clean; no tracked modifications and no untracked files.
+- Ignored local files preserved and not staged: `.env`, `frontend/.env.local`, `expenses.db`, caches, local Supabase temp state, `frontend/dist/`, and dependency folders.
+- Tracked-file audit found no tracked `.env`, local database, credential, token, or service-role files beyond placeholder `.env.example`.
+- Found root `node_modules/` tracked in Git despite ignore rules. These generated dependencies are being removed from the Git index only; the local files remain on disk and ignored.
+
+### Staging Configuration Review
+
+- Frontend build remains Vite-based for Cloudflare Pages with public `VITE_*` environment variables supplied by the hosting environment.
+- Backend staging remains Render-compatible through explicit environment variables, including `CORS_ORIGINS`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_JWT_AUDIENCE`.
+- Service-role keys, database URLs, JWT secrets, OAuth secrets, and real financial data must remain outside frontend variables and outside Git.
+- Hosted Supabase, Cloudflare Pages, and Render configuration still require manual provider-side setup before deployment.
+
+### Validation Results
+
+- Whitespace diff check:
+  - Command: `git diff --check`
+  - Result: passed.
+- Frontend tests:
+  - Command: `npm test -- --run`
+  - Result: passed.
+  - Output summary: `Test Files 11 passed (11)`, `Tests 67 passed (67)`.
+- Frontend lint:
+  - Command: `npm run lint`
+  - Result: passed.
+- Frontend TypeScript:
+  - Command: `npx tsc -p tsconfig.json --noEmit`
+  - Result: passed.
+- Frontend production build:
+  - Command: `npm run build`
+  - Result: passed.
+  - Output summary: `76 modules transformed`; built `dist/index.html`, CSS, and JS bundle.
+- Backend tests:
+  - Command: `pytest -q backend\tests -rs`
+  - Result: passed with local-Supabase integration skips in the default shell.
+  - Output summary: `44 passed, 4 skipped in 2.41s`.
+  - Skip reason: shell did not provide `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`.
+
+### Deployment Commit Scope
+
+- Include `docs/progress/DEVELOPMENT_LOG.md`.
+- Include removal of tracked root `node_modules/` files from Git.
+- Keep uncommitted/ignored: `.env`, `frontend/.env.local`, `expenses.db`, caches, Supabase temp state, build output, and local dependency folders.
