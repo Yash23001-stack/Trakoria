@@ -2365,3 +2365,65 @@ Backend transaction API tests:
 - Confirm the hosted Supabase project has the expected migrations applied and PostgREST schema cache refreshed.
 - Confirm Render has `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_JWT_AUDIENCE` configured for the same Supabase project that issued the frontend user's token.
 - Do not consider the production issue fixed until a hosted smoke test for `GET /api/secure/data` succeeds.
+
+## 2026-10-15 - TRK-BUG-001 Sanitized Storage Warning Diagnostics
+
+### Implementation
+
+- Changed application code only inside `backend/postgres/financial.py::_log_storage_failure()`.
+- The warning message now includes allowlisted method, table, numeric upstream status, known upstream error code, fixed failure reason, and allowlisted exception class. Safe structured diagnostic attributes are retained.
+- Paths are reduced to `transactions`, `budgets`, or `categories`. Queries, fragments, row identifiers, unrecognized paths, and full URLs are never rendered.
+- Removed upstream message text from the log record. Headers, keys, tokens, exception text, payloads, and response bodies are not attached or rendered.
+- Invalid methods, paths, and reasons become `unknown`; absent/invalid statuses, unapproved error codes, and unapproved exception classes render as `none`. Numeric status validation rejects booleans. Diagnostic parsing errors cannot replace the original storage failure.
+- Known upstream codes use a finite allowlist; new or unknown codes are deliberately omitted pending review.
+- Client-facing error status/body, request operations, authentication, and financial transformations remain unchanged. No other application function was edited.
+- Updated directly related tests in `backend/tests/test_secure_financial_api.py` for table-only attributes and omission of upstream messages. Added formatted-warning safety, path stripping, malformed/absent input, defensive parsing, and second-dashboard-read failure coverage.
+
+### Actual Validation
+
+- Targeted command: `.\backend\.venv\Scripts\python.exe -B -m pytest backend\tests\test_secure_financial_api.py -q -p no:cacheprovider`.
+  - First run: `1 failed, 54 passed in 0.84s`; a new assertion incorrectly prohibited Python's ordinary log-record `message` attribute. Corrected that assertion and reduced redundant malformed-input parameter combinations.
+  - Final run: exit `0`, `34 passed in 0.46s`; `0 failed`, `0 skipped`.
+- Isolated backend command: `.\backend\.venv\Scripts\python.exe -B -m pytest backend\tests -q -p no:cacheprovider --ignore=backend/tests/test_supabase_rls_integration.py --ignore=backend/tests/test_secure_financial_local_integration.py`.
+  - Exit `0`: `69 passed in 1.40s`; `0 failed`, `0 skipped`. Four live integration tests were excluded, not skipped.
+- `git diff --check`: passed.
+- Tests used mocked upstream calls and existing temporary SQLite fixtures; no real Supabase requests or writes were made.
+
+### Example And Limits
+
+`Supabase financial storage request failed method=GET table=transactions status=400 code=42703 reason=http_error exception=none`
+
+This is an illustrative mocked warning, not evidence of the live upstream failure. Local and production root causes remain unconfirmed. No live authenticated dashboard verification, production configuration change, deployment, commit, push, schema change, Docker/local Supabase command, or financial-data operation was performed. Existing uncommitted documentation and test-manifest work was preserved.
+
+## 2026-10-21 - Safe local commit review (nothing staged or committed)
+
+### Scope and preservation
+
+- Reviewed the six modified tracked files and six untracked files present at the start of this task. The index was empty. All existing work is retained; this task only appends this review entry to the log.
+- Proposed first commit: the existing `backend/postgres/financial.py` diagnostic sanitizer, its matching `backend/tests/test_secure_financial_api.py` changes, and selected diagnostic/review entries from this log. Do not stage this entire mixed-history log automatically; unrelated startup/migration/history entries belong with their respective later commits. Explicit user approval is required before staging or committing.
+- Defer general documentation changes (`README.md`, `Readme1.md`, and policy portions of `STARTUP.md`) to a documentation commit. Defer `backend/requirements-test.txt` and the matching test-setup portions of `STARTUP.md` to a test-tooling commit.
+- Defer the coherent migration/security package to its own commit: `supabase/migrations/002_foundation_hardening.sql`, `supabase/tests/test_migration_package.py`, `docs/SUPABASE_MIGRATION_CHECKLIST.md`, and both existing review SQL artifacts. The all-user `003_backfill_default_categories.sql.draft` remains inert outside migrations; it is not the one-account repair and must not be executed or promoted as part of a code commit.
+
+### Migration representation and security review
+
+- Migration 001 remains tracked and unchanged against HEAD after line-ending normalization. Its raw SHA-256 remains `6CE738D7213CCC99ED7A6B1E487DCA1817680ECB34ED7D623849829CB1159FBE`.
+- Migration 002 is present in the working tree but absent from HEAD. It must eventually be tracked in the separately reviewed migration package to represent the operator-reported applied schema. Offline inspection cannot independently prove that the hosted applied SQL/history exactly matches this copy. Do not rename, rewrite, or rerun applied migrations to reconcile repository tracking.
+- Operator confirmation remains the evidence for successful hosted 001/002 application, the current account's 14-category repair, local dashboard/transaction/budget success, production dashboard success, and production budget 502. The older pre-execution checklist is historical review guidance, not a current instruction to reapply migrations; clarify its status in a separately approved documentation update.
+- `_log_storage_failure()` uses finite method/table/reason/code/exception allowlists and a validated numeric status, renders them in ordinary warning text, and retains only sanitized structured fields. Query strings, paths containing identifiers, arbitrary upstream messages/details, request headers, tokens, payloads, financial records and exception text are not emitted by this helper. No traceback is attached. Unknown diagnostic values are suppressed or reduced to fixed placeholders.
+- The old `_safe_upstream_error()` helper remains defined but is not used by the current logging path; no unrelated dead-code cleanup was performed. No logger-routing change was added. Actual production warning visibility and deployed revision remain unverified.
+- A limited pattern scan of added tracked lines and all untracked text found zero private-key, literal JWT, Supabase secret-key, GitHub-token, or credential-bearing URL matches. This is a limited scan, not a universal secret-detection guarantee. Only `.env.example` is tracked among environment-file names; no environment contents were read or printed. No generated/data file appeared among the untracked candidates. Test fixtures contain synthetic examples, not hosted financial records.
+
+### Tests actually run
+
+- Used the existing `backend/.venv/Scripts/python.exe -B -` with an in-memory harness, calling `pytest.main` with:
+  `backend/tests supabase/tests/test_migration_package.py --ignore=backend/tests/test_supabase_rls_integration.py --ignore=backend/tests/test_secure_financial_local_integration.py -q -p no:cacheprovider --disable-plugin-autoload --tb=short`.
+- The process-local harness blocks external sockets before application/test imports, permits only Python's internal Windows `socketpair` wakeup connection, and permits SQLite only in temporary synthetic fixture paths or memory. It does not change persistent environment variables or configuration and was not saved as a file.
+- Result: exit 0, **89 passed in 1.57s**, no failures or skips. Both live integration modules (four tests) were excluded, not reported as passed. This covers the isolated backend suite and offline migration source contracts; it does not execute PostgreSQL or prove live production behavior.
+- `git diff --check` passed before this append; final post-append validation is reported in the task result. Git emitted the existing LF-to-CRLF informational warning for this log. No frontend source changed; frontend tests/build were not run.
+
+### Unresolved production issue and approval boundary
+
+- Production budget 502 root cause remains unresolved. The diagnostic change does not change budget writes or fix budget creation. Duplicate uniqueness conflicts, permissions, connectivity and response failures remain possible until correlated read-only production evidence identifies the cause. Check whether the attempted write persisted before any retry.
+- Proposed first commit message: `fix: render only allowlisted financial storage diagnostics`.
+- Local branch remains main; the user reports Auto-Deploy enabled on both hosting providers. A future push can cause deployment depending on configured branch/path filters, which have not been independently verified. Local commit preparation is not authorization to push.
+- No staging, commit, push, deployment, migration execution, hosted connection, database mutation, configuration change, reset, discard, or history rewrite was performed. Stop for explicit approval of the exact scope before any index or commit operation.

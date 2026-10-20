@@ -5,6 +5,7 @@ import pytest
 import requests
 
 from backend import db
+from backend.postgres.financial import _log_storage_failure
 from backend.api import app
 from backend.auth import AuthenticatedUser, get_current_user
 
@@ -252,8 +253,8 @@ def test_secure_dashboard_logs_upstream_auth_errors_without_leaking_secrets(
     record = caplog.records[-1]
     assert record.upstream_status_code == upstream_status
     assert record.upstream_error_code == "PGRST301"
-    assert record.upstream_error_message == "Bearer [REDACTED] rejected for [REDACTED_EMAIL]"
-    assert record.upstream_path.startswith("transactions?select=")
+    assert not hasattr(record, "upstream_error_message")
+    assert record.upstream_path == "transactions"
     assert "token-a" not in caplog.text
     assert "a@example.com" not in caplog.text
     assert "local-anon-key" not in caplog.text
@@ -286,8 +287,8 @@ def test_secure_dashboard_logs_schema_errors_but_keeps_generic_502(
     record = caplog.records[-1]
     assert record.upstream_status_code == status_code
     assert record.upstream_error_code == error_code
-    assert record.upstream_error_message == message
-    assert record.upstream_path.startswith("transactions?select=")
+    assert not hasattr(record, "upstream_error_message")
+    assert record.upstream_path == "transactions"
 
 
 def test_secure_dashboard_logs_timeout_without_leaking_request_headers(client, monkeypatch, caplog):
@@ -322,7 +323,7 @@ def test_secure_dashboard_rejects_and_logs_malformed_postgrest_json(client, monk
     record = caplog.records[-1]
     assert record.upstream_status_code == 200
     assert record.upstream_failure_reason == "malformed_json"
-    assert record.upstream_path.startswith("transactions?select=")
+    assert record.upstream_path == "transactions"
 
 
 def test_secure_dashboard_rejects_and_logs_unexpected_postgrest_json_shape(client, monkeypatch, caplog):
@@ -338,4 +339,90 @@ def test_secure_dashboard_rejects_and_logs_unexpected_postgrest_json_shape(clien
     record = caplog.records[-1]
     assert record.upstream_status_code == 200
     assert record.upstream_failure_reason == "unexpected_json_shape"
-    assert record.upstream_path.startswith("transactions?select=")
+    assert record.upstream_path == "transactions"
+
+
+def test_storage_warning_renders_only_allowlisted_diagnostics(caplog):
+    caplog.set_level(logging.WARNING, logger="backend.postgres.financial")
+    sensitive = "private-user secret-key Bearer private-token private@example.com financial-note"
+    _log_storage_failure(
+        "get", f"/transactions/private-user?note=eq.{sensitive}#private-fragment",
+        reason="http_error", status_code=403,
+        response=MockResponse(status_code=403, data={
+            "code": "42501", "message": sensitive, "details": sensitive,
+        }),
+        exc=requests.ConnectionError(sensitive),
+    )
+    record = caplog.records[-1]
+    assert logging.Formatter("%(message)s").format(record) == (
+        "Supabase financial storage request failed method=GET table=transactions "
+        "status=403 code=42501 reason=http_error exception=ConnectionError"
+    )
+    assert record.upstream_path == "transactions"
+    assert not hasattr(record, "upstream_error_message")
+    for forbidden in ("private-user", "secret-key", "private-token", "private@example.com",
+                      "financial-note", "private-fragment", "note=", "details"):
+        assert forbidden not in repr(record.__dict__)
+
+
+@pytest.mark.parametrize("path,expected", [
+    ("budgets/private-id?user_id=eq.private-id", "budgets"),
+    ("categories?select=private-data", "categories"),
+    ("transactions#private-id", "transactions"),
+    ("https://private-host/rest/v1/transactions?key=private-key", "unknown"),
+    ("private-id/transactions", "unknown"),
+    ("transactions\nprivate-data", "unknown"),
+    (None, "unknown"),
+])
+def test_storage_warning_strips_paths(caplog, path, expected):
+    caplog.set_level(logging.WARNING, logger="backend.postgres.financial")
+    _log_storage_failure("GET", path, reason="timeout")
+    record = caplog.records[-1]
+    assert record.upstream_path == expected
+    assert "private" not in repr(record.__dict__)
+
+
+@pytest.mark.parametrize("status,payload", [
+    (None, None), (True, []), ("403", {"code": "private-key"}),
+    (-1, {"code": ["42501"]}), (600, {"code": "TOKEN"}), ({}, {}), ([], {}),
+])
+def test_storage_warning_rejects_malformed_values(caplog, status, payload):
+    caplog.set_level(logging.WARNING, logger="backend.postgres.financial")
+    unapproved_exception = type("private_exception_name", (Exception,), {})
+    _log_storage_failure(
+        ["GET"], {}, reason={"private-reason": True}, status_code=status,
+        response=MockResponse(data=payload), exc=unapproved_exception("private-text"),
+    )
+    record = caplog.records[-1]
+    assert record.getMessage() == (
+        "Supabase financial storage request failed method=unknown table=unknown "
+        "status=none code=none reason=unknown exception=none"
+    )
+    assert "private" not in repr(record.__dict__)
+
+
+@pytest.mark.parametrize("json_error", [ValueError("private-body"), RuntimeError("private-body")])
+def test_storage_warning_diagnostic_parsing_cannot_mask_failure(caplog, json_error):
+    caplog.set_level(logging.WARNING, logger="backend.postgres.financial")
+    _log_storage_failure("GET", "budgets", reason="http_error", status_code=502,
+                         response=MockResponse(json_error=json_error))
+    record = caplog.records[-1]
+    assert record.upstream_status_code == 502
+    assert record.upstream_error_code is None
+    assert "private-body" not in repr(record.__dict__)
+
+
+def test_dashboard_second_read_failure_keeps_client_response(client, monkeypatch, caplog):
+    caplog.set_level(logging.WARNING, logger="backend.postgres.financial")
+    calls = configure(client, monkeypatch, user("user-a", "a@example.com", "token-a"), [
+        MockResponse(data=[]),
+        MockResponse(status_code=400, data={"code": "42703", "message": "private-upstream-text"}),
+    ])
+    response = client.get("/api/secure/data")
+    assert response.status_code == 502
+    assert response.json() == {"detail": "Supabase financial storage request failed."}
+    assert [call.method for call in calls] == ["GET", "GET"]
+    record = caplog.records[-1]
+    assert record.upstream_path == "budgets"
+    assert "table=budgets status=400 code=42703 reason=http_error exception=none" in record.getMessage()
+    assert "private-upstream-text" not in repr(record.__dict__)

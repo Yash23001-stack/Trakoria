@@ -126,17 +126,60 @@ def _log_storage_failure(
     response=None,
     exc: BaseException | None = None,
 ) -> None:
-    error = _safe_upstream_error(response) if response is not None else {"code": None, "message": None}
+    import json
+
+    safe_method = method.upper() if type(method) is str else "unknown"
+    if safe_method not in {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}:
+        safe_method = "unknown"
+    safe_path = path.split("?", 1)[0].split("#", 1)[0].strip("/").split("/", 1)[0] if type(path) is str else "unknown"
+    if safe_path not in {"transactions", "budgets", "categories"}:
+        safe_path = "unknown"
+    safe_status = status_code if type(status_code) is int and 100 <= status_code <= 599 else None
+    safe_reason = reason if type(reason) is str and reason in {
+        "http_error", "timeout", "request_exception", "malformed_json", "unexpected_json_shape",
+    } else "unknown"
+    exception_types = {
+        requests.RequestException, requests.Timeout, requests.ConnectTimeout, requests.ReadTimeout,
+        requests.ConnectionError, requests.HTTPError, requests.TooManyRedirects,
+        requests.exceptions.SSLError, requests.exceptions.ProxyError,
+        requests.exceptions.InvalidURL, requests.exceptions.InvalidSchema,
+        requests.exceptions.MissingSchema, requests.exceptions.InvalidHeader,
+        requests.exceptions.JSONDecodeError, json.JSONDecodeError, ValueError,
+    }
+    safe_exception = type(exc).__name__ if type(exc) in exception_types else None
+    # Accept known diagnostic codes only; never render arbitrary upstream strings.
+    allowed_codes = {
+        "PGRST000", "PGRST001", "PGRST002", "PGRST003", "PGRST100", "PGRST102",
+        "PGRST103", "PGRST105", "PGRST106", "PGRST107", "PGRST108", "PGRST116",
+        "PGRST200", "PGRST201", "PGRST202", "PGRST203", "PGRST204", "PGRST205",
+        "PGRST300", "PGRST301", "PGRST302", "PGRST303",
+        "42501", "42703", "42P01", "23502", "23503", "23505", "23514",
+        "22P02", "22003", "57014", "53300",
+    }
+    safe_code = None
+    if response is not None:
+        try:
+            payload = response.json()
+            if type(payload) is dict:
+                for field in ("code", "error_code", "error"):
+                    candidate = payload.get(field)
+                    if type(candidate) is str and candidate in allowed_codes:
+                        safe_code = candidate
+                        break
+        except Exception:
+            # Diagnostic parsing must not replace the original storage failure.
+            pass
     logger.warning(
-        "Supabase financial storage request failed",
+        "Supabase financial storage request failed method=%s table=%s status=%s code=%s reason=%s exception=%s",
+        safe_method, safe_path, safe_status if safe_status is not None else "none",
+        safe_code or "none", safe_reason, safe_exception or "none",
         extra={
-            "upstream_method": method.upper(),
-            "upstream_path": _redact(path),
-            "upstream_status_code": status_code,
-            "upstream_error_code": error["code"],
-            "upstream_error_message": error["message"],
-            "upstream_failure_reason": reason,
-            "upstream_exception_type": type(exc).__name__ if exc else None,
+            "upstream_method": safe_method,
+            "upstream_path": safe_path,
+            "upstream_status_code": safe_status,
+            "upstream_error_code": safe_code,
+            "upstream_failure_reason": safe_reason,
+            "upstream_exception_type": safe_exception,
         },
     )
 
