@@ -1,3 +1,5 @@
+> Current development policy (2026-10-15): use the existing hosted Supabase project for database/auth and local FastAPI/Vite servers. Do not start local Supabase, PostgreSQL containers, or Docker for Trakoria; do not run destructive Supabase CLI commands. Follow [STARTUP.md](STARTUP.md) for current environment setup and the explicitly isolated automated test command. Historical prototype instructions below do not override that policy.
+
 <div align="center">
 
 # Trakoria

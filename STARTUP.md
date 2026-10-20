@@ -121,24 +121,30 @@ Telegram Bot
 SQLite
 ```
 
+### Cloud-only database and authentication policy
+
+Hosted Supabase is the default and only database/auth environment for normal Trakoria development. Use the existing hosted project. Keep FastAPI and Vite local when needed; laptop resource constraints rule out local database services.
+
+- Do not start local Supabase, local PostgreSQL containers, or Docker for Trakoria.
+- Do not run destructive Supabase CLI commands, including database resets. Do not run schema pushes, migration application, project linking, or remote database mutations as part of startup or ordinary test validation.
+- Do not change hosted settings, schema, migrations, or existing financial data during setup. Any future hosted test workflow requires explicit authorization, isolated test users/data, and reviewed safe cleanup.
+- Historical local-stack instructions and results in the development log are superseded by this policy. `supabase/config.toml` is retained historical local CLI configuration, not the hosted project's live configuration or a startup requirement.
+- Legacy SQLite code remains for compatibility and temporary automated test fixtures; it is not the normal development database. Do not use the launcher's `-UseSmokeDb` switch as a replacement for hosted Supabase.
+
 ### Local Development Startup
 
-Quick start from the repository root:
+If the local servers are already running, reuse them. Otherwise, with an ignored root `.env` configured and the backend virtual environment activated, run from the repository root:
 
 ```powershell
 .\start-dev.ps1
 ```
 
-For an isolated smoke-test database that does not touch the prototype `expenses.db`:
+`start-dev.bat` wraps the same PowerShell launcher. Both start only FastAPI and Vite, require root `.env`, and reject occupied ports; neither starts Supabase or Docker. Activate `backend/.venv` first because the launcher resolves `uvicorn` from PATH.
+
+Manual startup in two terminals (no virtual environment activation required for the explicit backend interpreter):
 
 ```powershell
-.\start-dev.ps1 -UseSmokeDb
-```
-
-Manual startup:
-
-```powershell
-uvicorn backend.api:app --reload
+.\backend\.venv\Scripts\python.exe -B -m uvicorn backend.api:app --reload
 ```
 
 ```powershell
@@ -151,13 +157,41 @@ Expected local URLs:
 ```text
 Backend API:          http://127.0.0.1:8000
 Frontend:             http://localhost:5175
-Local Supabase API:   http://127.0.0.1:56000
-Local Supabase DB:    postgresql://postgres:postgres@127.0.0.1:56001/postgres
-Local Supabase Studio:http://127.0.0.1:56004
-Local Supabase Mail:  http://127.0.0.1:56005
 ```
 
 The frontend is React + TypeScript + Vite. The normal frontend development command is `npm run dev`, and Vite is configured to use port `5175`.
+
+### Backend test setup and validation
+
+From the repository root, use the existing Windows Python 3.11 virtual environment to install the test dependencies:
+
+```powershell
+.\backend\.venv\Scripts\python.exe -m pip install -r backend\requirements-test.txt
+.\backend\.venv\Scripts\python.exe -m pip check
+.\backend\.venv\Scripts\python.exe -B -c "from fastapi.testclient import TestClient; import httpx2; print('TestClient import OK')"
+```
+
+`backend/requirements-test.txt` includes the production requirements and pins pytest and HTTPX2 for tests. Keep deployment installs on `backend/requirements.txt`. Starlette's `TestClient` needs an optional HTTP client; installing base FastAPI alone does not provide it. The runtime dependencies remain unpinned, so this manifest is not a complete environment lockfile.
+
+Check collection, then run the subset that excludes live Supabase integration tests:
+
+```powershell
+.\backend\.venv\Scripts\python.exe -B -m pytest backend\tests -q --collect-only -p no:cacheprovider
+.\backend\.venv\Scripts\python.exe -B -m pytest backend\tests -q -p no:cacheprovider --ignore=backend/tests/test_supabase_rls_integration.py --ignore=backend/tests/test_secure_financial_local_integration.py
+```
+
+Collection does not execute test fixtures. Always use the explicit exclusions above for ordinary automated test execution, even after hosted environment variables are configured. Do not run bare `pytest` or the full backend suite with hosted credentials: `pytest.ini` discovers both live integration modules, and their fixtures accept general `SUPABASE_*` variables without a localhost guard. Do not supply a service-role key to ordinary tests.
+
+The following four tests are unavailable under the cloud-only workflow, not silently skipped or counted as passing:
+
+| Module | Tests requiring the unavailable local stack |
+| --- | --- |
+| `backend/tests/test_supabase_rls_integration.py` | `test_categories_rls_enforces_cross_user_ownership`, `test_transactions_rls_enforces_cross_user_ownership`, `test_budgets_rls_enforces_cross_user_ownership` |
+| `backend/tests/test_secure_financial_local_integration.py` | `test_secure_financial_routes_deny_direct_cross_user_access` |
+
+These fixtures create auth users and financial rows and perform service-role deletes during cleanup. Do not redirect them to the hosted project. A future hosted integration harness requires explicit isolated test users/data and reviewed, narrowly scoped cleanup before execution. Local migration-reset, local CLI database-lint, and Mailpit recovery checks are also unavailable.
+
+The ordinary subset uses temporary SQLite fixtures, mocked JWT/PostgREST calls, and static migration/configuration inspection. Temporary test SQLite files do not require a local database service. Report the executed subset's actual passed/failed/skipped counts separately from the four unavailable tests. These tests do not verify live hosted RLS or email delivery.
 
 ### Important prototype characteristics
 
@@ -356,82 +390,35 @@ transactions
 budgets
 ```
 
-The current SQLite prototype remains active until a later approved migration task. Do not point existing dashboard endpoints at Supabase/PostgreSQL yet.
+Normal development uses hosted Supabase through the existing authenticated `/api/secure/*` routes. Legacy shared SQLite financial routes remain blocked; do not enable them or change database routing during environment setup.
 
-### Supabase environment configuration
+### Hosted Supabase environment configuration
 
-Use `.env.example` as the placeholder template. Never commit real Supabase credentials.
+Use the existing hosted project's approved configuration. Inspect `.env.example` as a template only; never overwrite existing local values or invent credentials. Create or edit ignored files deliberately, preserving any existing settings.
 
-Backend-only values:
+Root `.env`, loaded by FastAPI:
 
-```env
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-SUPABASE_DATABASE_URL=
-```
+- `SUPABASE_URL`: existing hosted project URL.
+- `SUPABASE_ANON_KEY`: that project's public anonymous key, used by the current backend REST client.
+- `SUPABASE_JWT_AUDIENCE`: optional; defaults to `authenticated`.
+- `CORS_ORIGINS`: optional for local development; defaults allow `http://localhost:5175` and `http://127.0.0.1:5175`.
+- `APP_PIN`: legacy configuration only; does not replace Supabase authentication.
 
-Frontend public values for browser client/auth work:
+`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DATABASE_URL`, and `DATABASE_URL` are not required by the current REST-based startup/financial flow. Do not add admin credentials or direct database access merely to start the app or run ordinary tests.
 
-```env
-VITE_SUPABASE_URL=
-VITE_SUPABASE_PUBLISHABLE_KEY=
-VITE_SUPABASE_ANON_KEY=
-VITE_SUPABASE_REDIRECT_URL=
-```
+Frontend `frontend/.env.local`, loaded by Vite:
 
-Local frontend Supabase development normally uses:
+- `VITE_SUPABASE_URL`: the same existing hosted project URL.
+- `VITE_SUPABASE_PUBLISHABLE_KEY` or `VITE_SUPABASE_ANON_KEY`: approved public browser key for that project.
+- `VITE_API_BASE_URL`: optional locally; use `http://127.0.0.1:8000` for an explicit local FastAPI target. Localhost falls back to port `8000` when unset.
+- `VITE_SUPABASE_REDIRECT_URL`: local frontend callback `http://localhost:5175/auth/callback`.
+- `VITE_SUPABASE_RECOVERY_REDIRECT_URL`: local frontend recovery page `http://localhost:5175/auth/recovery`.
 
-```env
-VITE_SUPABASE_URL=http://127.0.0.1:56000
-VITE_SUPABASE_REDIRECT_URL=http://localhost:5175/auth/callback
-```
+Use existing approved redirect settings; if those URLs are not already allowed in the hosted project, report the blocker to the project owner. Do not change hosted settings during startup verification. Restart Vite after environment changes.
 
-Use the local public publishable or anonymous key from `npx supabase status -o env`. Never expose `SUPABASE_SERVICE_ROLE_KEY`, JWT signing secrets, OAuth client secrets, or database passwords to the React frontend.
+Only public browser configuration may use the `VITE_` prefix. Never expose service-role keys, JWT signing secrets, OAuth client secrets, or database passwords to React. Do not print environment file contents or credentials. Git ignores `.env` and `.env.*` at root and nested paths; `.env.example` is intentionally tracked and must contain placeholders only. Ignoring does not protect a file already tracked, so verify with `git ls-files` before sharing changes.
 
-### Local Supabase development
-
-The repository uses the official Supabase CLI through a project-local npm dev dependency.
-
-Check the local CLI:
-
-```powershell
-npx supabase --version
-```
-
-Initialize local Supabase configuration, if `supabase/config.toml` is missing:
-
-```powershell
-npx supabase init --yes
-```
-
-Run the local Supabase stack only when Docker Desktop is installed and running:
-
-```powershell
-npx supabase start
-```
-
-Expected local Supabase ports from `supabase/config.toml`:
-
-```text
-API:       http://127.0.0.1:56000
-DB:        postgresql://postgres:postgres@127.0.0.1:56001/postgres
-Shadow DB: localhost:56002
-Pooler:    localhost:56003 (disabled by default)
-Studio:    http://127.0.0.1:56004
-SMTP UI:   http://127.0.0.1:56005
-Analytics: localhost:56006
-```
-
-The local Supabase Auth callback URL for the Vite frontend is:
-
-```text
-http://localhost:5175/auth/callback
-```
-
-Keep this URL in the local Supabase redirect allow-list. Hosted frontend callback URLs must be configured deliberately for the target hosting domain and are not guessed in this repository.
-
-Do not run hosted-project link, push, or remote database commands during local environment setup. The current SQLite prototype remains the active application database until a later approved migration task.
+Health startup does not require Supabase credentials: verify `http://127.0.0.1:8000/healthz`. A healthy backend and rendered frontend do not establish working hosted sign-in, RLS, or email delivery. Missing public frontend Supabase configuration blocks authentication.
 
 ---
 
@@ -978,7 +965,7 @@ Manual transaction entry is the primary V1 input mechanism. Telegram is optional
 
 **Status:** Approved
 
-SQLite remains useful for local prototyping but shared production data will use PostgreSQL.
+Hosted Supabase/PostgreSQL is the only database/auth environment for normal development and shared production data. Temporary SQLite fixtures remain available for isolated automated tests; local database services are not part of development.
 
 ### Decision: One backend, multiple clients
 

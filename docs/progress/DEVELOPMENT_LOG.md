@@ -1,5 +1,7 @@
 # Development Log
 
+> Current policy (2026-10-15): hosted Supabase is the only database/auth environment for normal development. Do not start local Supabase, PostgreSQL containers, or Docker, or run destructive Supabase CLI commands. Historical local setup/reset instructions and next steps below are superseded. Follow `STARTUP.md`; local integration checks are unavailable under this workflow.
+
 ## 2026-10-07
 
 ### T-001 Implementation Status
@@ -2366,6 +2368,129 @@ Backend transaction API tests:
 - Confirm Render has `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_JWT_AUDIENCE` configured for the same Supabase project that issued the frontend user's token.
 - Do not consider the production issue fixed until a hosted smoke test for `GET /api/secure/data` succeeds.
 
+## 2026-10-15 - Missing TestClient Dependency
+
+### Investigation Findings
+
+- The existing Windows virtual environment uses Python `3.11.9`, FastAPI `0.143.2`, Starlette `1.8.0`, pytest `9.1.1`, and AnyIO `4.15.1`.
+- Neither `httpx` nor `httpx2` was installed or importable before the fix. Starlette's test client tries HTTPX2 first, then legacy HTTPX, and raises the reported collection error when both are missing.
+- FastAPI's installed metadata allows `starlette>=0.46.0`; the installed Starlette satisfies that constraint. Starlette declares HTTP client dependencies under its optional `full` extra. Consequently, `pip check` passed even before the fix.
+- `backend/requirements.txt` declares unpinned production dependencies and omits pytest and test HTTP clients. No Python lockfile, constraints file, or checked-in CI configuration was found. The FastAPI `0.115` badge in `Readme1.md` is not an enforceable version constraint.
+- Upstream Starlette added HTTPX2 support in `1.2.0`; legacy HTTPX remains supported but deprecated. The evidence identifies a missing optional test dependency, rather than a conflict between installed HTTPX versions.
+- References: https://starlette.dev/release-notes/, https://starlette.dev/testclient/, https://pypi.org/project/httpx2/.
+- During investigation, collection with `--collect-only -p no:cacheprovider` exited `1` at the `TestClient` import before application imports or test fixtures ran.
+
+### Changes
+
+- Added `backend/requirements-test.txt`, including `-r requirements.txt`, `pytest==9.1.1`, and `httpx2==2.13.1`.
+- Added Windows test installation, import validation, collection, and non-live-integration test instructions to `STARTUP.md`.
+- Left `backend/requirements.txt`, application code, database configuration, and migrations unchanged.
+- Initial Git status was clean; no unrelated user changes were present.
+
+### Actual Validation Results
+
+All commands ran from `C:\Yash Personal\Trakoria` using the existing `backend\.venv`.
+
+- Install command: `.\backend\.venv\Scripts\python.exe -m pip install -r backend\requirements-test.txt`
+  - Initial restricted execution exited `1`: `No matching distribution found for httpx2==2.13.1`.
+  - Retried the same command with network access; exited `0`.
+  - Installed `httpx2==2.13.1`, `httpcore2==2.13.1`, and `truststore==0.10.5`. Existing FastAPI, Starlette, and pytest versions were retained; no downgrade was performed.
+- Dependency check: `.\backend\.venv\Scripts\python.exe -m pip check`
+  - Exit `0`: `No broken requirements found.`
+- Import check: `.\backend\.venv\Scripts\python.exe -B -c "from fastapi.testclient import TestClient; import httpx2; print('TestClient import OK')"`
+  - Exit `0`: `TestClient import OK`.
+- Collection: `.\backend\.venv\Scripts\python.exe -B -m pytest backend\tests -q --collect-only -p no:cacheprovider`
+  - Exit `0`: `55 tests collected in 0.22s`; no test bodies or fixtures executed.
+- Non-live-integration subset: `.\backend\.venv\Scripts\python.exe -B -m pytest backend\tests -q -p no:cacheprovider --ignore=backend/tests/test_supabase_rls_integration.py --ignore=backend/tests/test_secure_financial_local_integration.py`
+  - Exit `0`: `51 passed in 1.55s`; `0 failed`, `0 skipped`.
+  - The two live integration modules containing four tests were excluded, not skipped. SQLite tests use the existing temporary-database fixture; Supabase API tests use mocks.
+
+### Remaining Issues And Limits
+
+- No newly revealed collection or test failures; HTTPX2 worked with the exercised test-client usage.
+- The four live Supabase integration tests were collected but not executed. No real or hosted database was modified, and no database reset was run.
+- Runtime requirements remain unpinned; the test manifest does not fully lock transitive dependencies or establish clean-environment reproducibility.
+- This fix addresses test collection only. The previously documented production financial API checks remain unresolved by this task.
+- No commit, push, deployment, or Git history rewrite was performed.
+
+## 2026-10-15 - Local Application Startup Verification
+
+### Configuration And Preserved Changes
+
+- Read `STARTUP.md`, `start-dev.ps1`, `start-dev.bat`, `backend/api.py`, `backend/config.py`, frontend package scripts, Vite configuration, and frontend API/Supabase client configuration.
+- Initial Git status: modified `STARTUP.md`, modified `docs/progress/DEVELOPMENT_LOG.md`, and untracked `backend/requirements-test.txt`. Preserved all of these changes; this task only appends to this log.
+- Vite explicitly uses port `5175` with `strictPort: true`. The launcher also checks backend port `8000`; the documented Uvicorn invocation serves on `127.0.0.1:8000` with no host/port override configured.
+- Frontend API resolution falls back to `http://localhost:8000` when opened on localhost and `VITE_API_BASE_URL` is absent. Backend CORS defaults explicitly permit `http://localhost:5175` and `http://127.0.0.1:5175`.
+- Root `.env` and frontend `.env*` files are absent. The launcher requires root `.env`, so the manual documented commands were used. `uvicorn` is not on the shell PATH; the existing virtual environment's Python module invocation was used instead.
+- Presence-only backend checks found these names absent: `APP_PIN`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DATABASE_URL`, `DATABASE_URL`, `SUPABASE_JWT_AUDIENCE`, `CORS_ORIGINS`. Audience and CORS have defaults; service-role/database variables are not required for health startup or the current REST financial client.
+- Vite `loadEnv('development', process.cwd(), '')` plus process environment checks found these names absent: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_ANON_KEY`, `VITE_API_BASE_URL`, `VITE_SUPABASE_REDIRECT_URL`, `VITE_SUPABASE_RECOVERY_REDIRECT_URL`. The API URL has a local fallback. No secret values or environment file contents were printed.
+
+### Commands And Startup Results
+
+- Backend import: `.\backend\.venv\Scripts\python.exe -B -c "from backend.api import app; print('Backend import OK')"` (equivalent import also executed within the presence-only inspection script): successful; `/healthz` route exists.
+- Backend command: `.\backend\.venv\Scripts\python.exe -B -m uvicorn backend.api:app --reload` from the repository root.
+  - Restricted execution encountered Windows multiprocessing `PermissionError: [WinError 5] Access is denied` for named pipes. The failed reloader PID `14364` was terminated using host permissions after restricted cleanup was denied.
+  - Retried outside the sandbox: application startup completed successfully. Reloader PID `29468`, worker PID `20820`; backend left running for local use.
+- Frontend command: `npm.cmd run dev` from `frontend` (Windows command equivalent of documented `npm run dev`).
+  - Restricted execution failed with subprocess `spawn EPERM`.
+  - Host retry exited `1` because port `5175` was already occupied. Host listener/process inspection confirmed the existing listener PID `18176` is this repository's Vite process. Reused it; no second frontend listener was started.
+- Restricted listener discovery initially returned no listeners; host-level inspection was necessary to see the existing frontend. Actual listeners: frontend `[::1]:5175`, backend `127.0.0.1:8000`.
+
+### HTTP And Browser Verification
+
+- Python `urllib.request.urlopen` from the host returned `200` for `http://localhost:5175/` (HTML) and `200 {"status":"ok"}` for `http://127.0.0.1:8000/healthz`.
+- Browser opened `http://localhost:5175/`: rendered the Trakoria sign-in page with `MISSING VITE_SUPABASE_URL FOR SUPABASE BROWSER CLIENT.` Browser navigation to `http://127.0.0.1:8000/healthz` visibly rendered `{"status":"ok"}`.
+- Host HTTP checks with `Origin: http://localhost:5175`:
+  - `GET /healthz`: `200`, expected health JSON, matching `Access-Control-Allow-Origin`.
+  - `GET /api/auth/me` without credentials: expected `401`, `Missing bearer authentication token.`, matching `Access-Control-Allow-Origin`.
+  - `OPTIONS /api/auth/me` with requested method `GET` and requested header `authorization`: `200 OK`, matching allowed origin, authorization header allowed.
+- Direct browser evaluation could not execute fetch (`TypeError: fetch is not a function` in the browser tool's restricted evaluation scope). Therefore browser cross-origin fetch execution is not claimed; browser rendering/navigation and HTTP CORS responses were verified separately.
+
+### Remaining Issues And Smallest Safe Fix
+
+- Both local servers serve requests, but authenticated frontend/backend data flow remains unverified because Supabase configuration and a test session are missing.
+- Configure ignored local environment files for the intended local Supabase instance: backend `SUPABASE_URL` and `SUPABASE_ANON_KEY`; frontend `VITE_SUPABASE_URL` and either `VITE_SUPABASE_PUBLISHABLE_KEY` or `VITE_SUPABASE_ANON_KEY`. Restart Vite after configuring. Do not invent credentials or change hosted settings.
+- For the quick-start launcher, root `.env` must exist and the backend virtual environment must be activated so `uvicorn` resolves. Manual startup with the explicit virtual environment interpreter already works. No launcher/application changes were made.
+- No authentication submission, financial requests, database resets, database modifications, migrations, commits, pushes, or deployments were performed.
+
+
+## 2026-10-15 - Hosted Supabase Only For Normal Development
+
+### Decision And Documentation Changes
+
+- Use the existing hosted Supabase project as the default and only database/auth environment for normal development, while keeping FastAPI and Vite local on ports `8000` and `5175`.
+- Do not start local Supabase, PostgreSQL containers, or Docker for Trakoria. Do not run destructive Supabase CLI commands or perform hosted settings/schema/migration/data changes during setup or ordinary test validation.
+- Updated `STARTUP.md` with this policy, explicit virtual-environment startup, hosted environment variable requirements, test exclusions, and security boundaries. Removed active local-stack startup/port instructions and superseded the outdated SQLite development guidance.
+- Added current-policy notices to `README.md`, `Readme1.md`, and the top of this log. Earlier local setup, reset commands, results, and next steps remain historical evidence and are superseded, including the previous startup verification's recommendation to configure local Supabase.
+- Inspected both startup scripts: they start only FastAPI/Vite; the PowerShell launcher requires root `.env` and `uvicorn` on PATH and refuses occupied ports. No script change was essential. Retained `supabase/config.toml` and migrations unchanged as repository artifacts; local CLI configuration does not configure the hosted project.
+- Preserved existing uncommitted `STARTUP.md`, development-log, and `backend/requirements-test.txt` work. This task changed Markdown documentation only; application and test behavior are unchanged.
+
+### Unavailable Tests And Hosted Data Isolation
+
+- `backend/tests/test_supabase_rls_integration.py`: three tests, `test_categories_rls_enforces_cross_user_ownership`, `test_transactions_rls_enforces_cross_user_ownership`, and `test_budgets_rls_enforces_cross_user_ownership`.
+- `backend/tests/test_secure_financial_local_integration.py`: one test, `test_secure_financial_routes_deny_direct_cross_user_access`.
+- All four require the unavailable local stack and are explicitly excluded from the cloud-only test command, not reported as passed or silently skipped.
+- Inspection found these fixtures accept general `SUPABASE_*` variables, prefer them over `LOCAL_SUPABASE_*`, have no localhost URL guard, create users/financial rows, and delete via service-role cleanup. Do not run the unfiltered suite with hosted credentials or redirect these modules to the hosted project.
+- A future hosted integration workflow requires explicit authorization, isolated test users/data, and reviewed safe cleanup. No such workflow is approved or implemented here. Local migration reset/lint and Mailpit recovery checks are also unavailable.
+- Ordinary tests retain temporary SQLite fixtures, mocked JWT/PostgREST access, and static migration inspection. These do not use hosted financial data or require database containers.
+
+### Verified Commands And Results
+
+- `git status --short`: initial changes were `STARTUP.md`, `docs/progress/DEVELOPMENT_LOG.md`, and untracked `backend/requirements-test.txt`; preserved them.
+- `git check-ignore -v --no-index .env .env.local .env.development.local backend/.env backend/.env.local frontend/.env frontend/.env.local frontend/.env.development.local`: all eight paths matched `.gitignore` rules for `.env` or `.env.*`.
+- `git ls-files -- '.env' '.env.*' ':(glob)**/.env' ':(glob)**/.env.*'`: only `.env.example` is tracked; no real environment files were listed.
+- Presence-only checks found `.env`, `backend/.env`, `frontend/.env`, `frontend/.env.local`, `frontend/.env.development`, and `frontend/.env.development.local` absent. No values were printed, invented, written, or overwritten.
+- `.\backend\.venv\Scripts\python.exe -B -m pytest backend\tests -q -p no:cacheprovider --ignore=backend/tests/test_supabase_rls_integration.py --ignore=backend/tests/test_secure_financial_local_integration.py`: exit `0`, `51 passed in 1.33s`, `0 failed`, `0 skipped`; four unavailable integration tests excluded.
+- Reviewed the documentation diff and searched `STARTUP.md` for local-stack commands/ports: active Supabase CLI startup instructions and local Supabase service URLs removed.
+
+### Security And Remaining Limits
+
+- Root `.env` needs approved existing hosted `SUPABASE_URL` and `SUPABASE_ANON_KEY`; frontend `.env.local` needs `VITE_SUPABASE_URL` and a public publishable/anonymous key for the same project. Existing missing-configuration blockers remain until the owner supplies approved values.
+- Public frontend values only may use `VITE_`; service-role keys, database passwords, signing secrets, and OAuth secrets must remain out of frontend configuration. Do not add service-role/direct database credentials just to start the app or run ordinary tests.
+- Restart Vite after configuration changes; use already approved hosted callback/recovery URLs. Hosted redirect settings and authenticated live functionality were not verified or changed in this task.
+- Policy and explicit test-command exclusions are documented safeguards; `pytest.ini` and integration fixtures remain unchanged. Bare full-suite execution with hosted credentials remains unsafe and is prohibited by the developer instructions.
+- No Docker, Supabase CLI, local database service, hosted API/database mutation, migration, reset, commit, push, or deployment was run in this task.
+
 ## 2026-10-15 - TRK-BUG-001 Sanitized Storage Warning Diagnostics
 
 ### Implementation
@@ -2394,6 +2519,104 @@ Backend transaction API tests:
 `Supabase financial storage request failed method=GET table=transactions status=400 code=42703 reason=http_error exception=none`
 
 This is an illustrative mocked warning, not evidence of the live upstream failure. Local and production root causes remain unconfirmed. No live authenticated dashboard verification, production configuration change, deployment, commit, push, schema change, Docker/local Supabase command, or financial-data operation was performed. Existing uncommitted documentation and test-manifest work was preserved.
+
+## 2026-10-20 - Local Supabase migration preparation (unexecuted)
+
+### Changes
+
+- Kept `supabase/migrations/001_initial_schema.sql` byte-for-byte unchanged. Raw SHA-256 before and after: `6CE738D7213CCC99ED7A6B1E487DCA1817680ECB34ED7D623849829CB1159FBE`. It still has no Git diff.
+- Added complete `supabase/migrations/002_foundation_hardening.sql`: PG17/postgres owner prerequisites, trusted function search paths and security modes, ordinary-client EXECUTE restrictions, authenticated category SELECT-only access, transaction/budget owner policies and explicit CRUD grants, income Other defaults, and effective privilege assertions.
+- Preserved existing `service_role` access pending dependency review. 002 snapshots effective table/column/function privileges, restores only previously available rights lost through PUBLIC revocation, and checks equivalence. The snapshot is transaction-local. The role's privileged arbitrary-user seeder access may remain: its administrative dependency/security disposition is still a hosted-execution blocker. No global default ACLs or schema/object owners are changed.
+- Added `supabase/review/003_backfill_default_categories.sql.draft` outside runnable migrations, plus `preview_default_categories.sql`. Both use the same 14-category set. Scope is all Auth users at statement time, subject to separate preview/scope/volume approval. Matching user-defined categories are preserved. No all-user backfill is included in 002 or the initial CLI plan.
+- Added `supabase/tests/test_migration_package.py` and `docs/SUPABASE_MIGRATION_CHECKLIST.md`. The checklist includes pinned CLI commands (not run), two-project containment, role/history limitations, preflight/postflight checks, backfill approval, failure recovery, configuration cutover and duplicate-write safeguards.
+
+### Actual local validation
+
+- Ran with `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`: `.\backend\.venv\Scripts\python.exe -B -m pytest supabase/tests/test_migration_package.py -q -p no:cacheprovider --confcutdir=supabase/tests`.
+- Result: exit `0`, `18 passed in 0.05s`; no failed or skipped tests.
+- These are SQL source-contract tests only, with socket connections blocked. They avoid backend conftest/application imports, do not load application configuration, and do not parse or execute SQL. They check baseline preservation, backfill discovery exclusion, category consistency, trusted paths/owner contracts, ACL preservation/restrictions, owner policies and insert-only backfill structure.
+- `git diff --check`: passed before this appended log entry; final whitespace validation is reported in the task result.
+- No PostgreSQL parser/runtime, live RLS/ACL checks, signup trigger execution or hosted behavior was tested. The broader backend and four live integration tests were not run.
+
+### Remaining approvals and limits
+
+- Hosted execution remains NO-GO pending coordinated wrong-project traffic containment and intended-project Data API containment, complete ACL/service-role dependency conclusions, pinned runner/effective-role assurance, remaining Auth/index prerequisites and recovery review.
+- The CLI commits migration files separately: 001 can remain committed/recorded when 002 fails. A guard in 002 does not establish the pre-001 connection role. Keep containment until verification; do not apply SQL statement-by-statement.
+- Backfill promotion/application requires separate approval after aggregate preview. Render/frontend configuration changes and any isolated signup/financial-write tests require their own approval after database readiness.
+- No SQL, Supabase CLI, network/database connections, hosted tests, migration application, Render/Cloudflare settings change, deployment, commit, push, reset or history rewrite was performed. Existing uncommitted work was preserved.
+
+## 2026-10-20 - Approved internal-function EXECUTE correction (local only)
+
+### Approved security boundary and changes
+
+- Supersedes the earlier pending service_role function exception above. The user approved removing service_role EXECUTE on all five internal foundation functions while preserving its existing table/column administrative access.
+- Updated `supabase/migrations/002_foundation_hardening.sql`: service_role is a function-revocation target; function rights are removed from the preservation snapshot, restoration loop and baseline-equivalence comparison. Existing table/column snapshot/restoration behavior is retained.
+- Effective function denial now enumerates all five pg_proc objects independently of the narrowed snapshot and checks anon, authenticated, authenticator and service_role. Unexpected inherited EXECUTE aborts 002. This avoids a vacuous denial check after removing function rows from the snapshot.
+- Explicit postgres execution grants on all five functions and category SELECT/INSERT remain intact. Static inspection confirms the unchanged Auth trigger invokes the definer handler, whose qualified helper call executes in the shared trusted postgres owner context. Trusted search paths, role/ownership guards, RLS policies and per-file transaction assumptions are unchanged. Runtime signup/ACL behavior is not verified.
+- Updated package tests and `docs/SUPABASE_MIGRATION_CHECKLIST.md` to remove the obsolete privileged seeder exception and require service_role denial alongside ordinary API roles. No new prerequisite was introduced; the existing effective-privilege model now enforces the approved decision.
+
+### Actual validation
+
+- With `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`, ran `.\backend\.venv\Scripts\python.exe -B -m pytest supabase/tests/test_migration_package.py -q -p no:cacheprovider --confcutdir=supabase/tests`: exit `0`, **20 passed in 0.09s**, no failed or skipped tests.
+- Ran `backend/tests/test_supabase_foundation.py --noconftest -q -p no:cacheprovider` through `pytest.main` using the same Python interpreter with `-B`, plugin autoload disabled, socket create_connection/connect/connect_ex blocked, and sqlite3.connect blocked before importing pytest: exit `0`, **12 passed in 0.09s**, no failed or skipped tests. This avoids backend conftest/application imports and all database fixtures.
+- These 32 checks are offline source/configuration regression tests. No SQL parser or PostgreSQL runtime was invoked; no SQL, database connection or hosted behavior was validated. API tests that use SQLite fixtures and all live integration tests were not run.
+- Raw SHA-256 verification for 001, the 003 draft and its preview, plus final whitespace/diff checks, are recorded in the task result. No changes were made to those files.
+
+### Remaining execution boundary
+
+- Hosted execution remains NO-GO pending review/approval of the exact migration plan, pinned runner/effective-role assurance, remaining Auth/index/effective ACL prerequisites, coordinated two-project containment and recovery. The service_role internal-function removal decision itself is resolved and does not need another approval.
+- Backfill scope/volume and application remain separately gated by the aggregate preview. Render/frontend cutover and any isolated hosted signup/write tests retain their later approval gates.
+- No SQL or database connections, Supabase commands, Docker/local Supabase, hosted configuration changes, deployments, commits, pushes or history changes were performed. Every unrelated existing change was preserved.
+
+
+## 2026-10-21 - Post-migration category repair and production-readiness review
+
+### Confirmed results supplied by the operator
+
+- Migrations `001_initial_schema.sql` and `002_foundation_hardening.sql` were successfully applied to the existing hosted Supabase project. The operator reports read-only verification of financial tables, RLS policies, triggers, and reviewed table/function privileges. This supersedes earlier pending-migration status for those two migrations; this review did not reconnect to Supabase or independently rerun those checks.
+- The affected signed-in account lacked all 14 expected default category combinations. An account-scoped repair was executed by the operator, and its postflight verified all 14 combinations. No all-user backfill application is established by this evidence; `supabase/review/003_backfill_default_categories.sql.draft` remains an all-user draft.
+- The local dashboard loads without errors, and local `POST /api/secure/budgets` now returns HTTP 200. Local transaction creation was previously reported successful. These are operator-confirmed observations, not browser or live HTTP verification performed during this review. Refresh persistence and a fresh post-repair transaction smoke test remain pending.
+
+### Root cause and source assessment
+
+- The confirmed local 422 was caused by absent account-owned default category rows. `create_budget()` calls `_find_category(category, "expense")` before posting a budget; the lookup reads RLS-visible categories and requires a case-insensitive name and exact type match. An empty result produces `Invalid transaction category` before the budget insert. BudgetManager offers fixed expense category names even when corresponding database rows are absent.
+- Migration 001 seeds defaults only after INSERT on `auth.users`; applying the trigger does not initialize existing users. Migration 002 updates the trusted helper to 14 defaults, including income Other, but performs no existing-user backfill. Sign-in, dashboard refresh, and budget creation do not initialize categories. Dashboard reads can succeed with empty transactions/budgets without resolving a category.
+- Other existing Auth accounts may still have missing defaults; no count or claim about specific other accounts is verified. Accounts initialized under 001 alone may also lack income Other. New Auth users inserted after 002 should receive 14 combinations through the trusted trigger, but this review did not test a new signup.
+- The current financial REST client sends the configured public API key plus the verified user's bearer token, derives inserted ownership from the verified subject, and relies on RLS. It does not call internal functions via RPC or use a service-role/direct database connection for these routes.
+- Source-level schema/grant compatibility: 001 supplies the queried columns and category foreign-key relationships; 002 grants authenticated category SELECT, financial-table CRUD, and public-schema USAGE with owner policies. Its trusted signup path retains postgres privileges while direct API execution of internal functions is denied. The operator's local budget HTTP 200 supports the repaired account's write path. These findings establish no inherent missing-grant requirement for the current routes, not verification of deployed Render code/configuration or hosted signup behavior.
+
+### Smallest local smoke-test sequence (planned, not executed here)
+
+1. Use the repaired account on the existing local frontend/backend. Load the dashboard and inspect `GET /api/secure/data` for HTTP 200. Hard-refresh and confirm a fresh successful GET and the same persisted records; a rendered shell alone is insufficient. Keep the selected month/date filters consistent.
+2. Reuse the already successful transaction and budget if identifiable. On a fresh GET after a hard-refresh, confirm each appears exactly once with the intended category, amount, date and budget period/start date. This is the smallest persistence check and avoids redundant writes.
+3. If a fresh creation test is needed, have the operator enter one intended expense transaction and one intended budget, one at a time. Expect HTTP 200 from each POST and the follow-up dashboard GET. Use an unused `(category, period, start_date)` budget combination. Hard-refresh after each write and confirm exactly one matching record. This local frontend uses hosted Supabase; local UI writes are hosted writes and were not performed during this task. Do not generate disposable real-account financial data merely to test the UI.
+4. For existing-user initialization, use the previously reviewed read-only authenticated category check: confirm the repaired account's ten expense and four income name/type combinations exactly once. Record that repeated sign-in/refresh reads existing defaults rather than backfilling other accounts. Other-account review or new-signup testing requires a separate appropriately scoped workflow; no global backfill is implied.
+
+### Production verification checklist (all pending)
+
+- At `https://trakoria.pages.dev`, sign in with the repaired account and confirm requests actually reach `https://trakoria-api.onrender.com`. Check authenticated identity and `GET /api/secure/data` for HTTP 200, then hard-refresh and confirm server-backed persistence. Do not copy headers, tokens, cookies, full financial responses, or unsanitized HAR files.
+- Verify the deployed frontend API base and Supabase project match the intended backend/project; verify Render configuration presence/project alignment privately. Current backend CORS defaults allow local origins only, so the production origin must already be explicitly configured. Audience/issuer/JWKS verification must match the user's token; the verifier supports RS256/ES256. No environment values or deployment state were read or changed here.
+- After the read-only production check passes, the operator may create one intended transaction and one intended, nonduplicate budget. Confirm HTTP 200, successful follow-up dashboard GET, and persistence after hard-refresh. Reuse the locally created records for production read verification first if the same account/project is in use. Production writes were not authorized for this review and were not performed.
+- If a 502 remains, first distinguish the app JSON storage-error response from an infrastructure/proxy response. Record only endpoint, HTTP status, UTC timestamp and available nonsensitive request identifier. Inspect matching Render logs using the deployed sanitized diagnostic format: method, table, upstream status, allowlisted code, fixed reason and exception class. Verify deployed code contains the current sanitization before relying on it; do not share older raw upstream messages or request/response data.
+- Diagnose from evidence: upstream 401/403 suggests project/key/token/privilege alignment; 42501 suggests permissions/RLS; 42P01/PGRST205 or 42703 suggests missing relation/schema cache or column mismatch; PGRST200-family relationship errors suggest relationship/cache metadata; 23505 suggests duplicate uniqueness (including an existing budget tuple). Timeout/connection failures require network/service investigation. These are diagnostic leads, not established production causes; inspect only the indicated area through read-only checks before proposing changes.
+- A category lookup with no match yields 422, not proof of an upstream 502 cause. The earlier production 502 root cause remains unconfirmed until reproduced or shown resolved. A health response alone does not establish authenticated financial readiness.
+- After any ambiguous write failure or timeout, read/reload first to establish whether it persisted. Do not blindly retry POSTs: a committed-but-unacknowledged transaction can be duplicated, and a budget retry can hit its unique index. Existing mutation callbacks POST and then refresh; a refresh failure does not prove the POST failed.
+
+### Isolated automated validation actually performed
+
+- Ran only `backend/tests/test_secure_financial_api.py`, `backend/tests/test_auth_jwt.py`, `backend/tests/test_supabase_foundation.py`, and `supabase/tests/test_migration_package.py` using `backend/.venv/Scripts/python.exe -B`, in-memory `pytest.main`, and arguments `-q -p no:cacheprovider --disable-plugin-autoload` (final run additionally used `--tb=short`). No test or application source was edited.
+- The process-local harness blocked external socket connections before pytest/application imports and allowed SQLite only in temporary synthetic fixture paths (or memory). The corrected guard permits only Python's internal `socket.socketpair` connection needed by the Windows asyncio wakeup mechanism; it does not allow arbitrary localhost HTTP or Supabase requests. These guards did not alter persistent environment variables or app configuration.
+- Initial harness run: exit 1, 22 failed / 56 passed / 19 warnings in 6.95s. Its overly broad socket guard blocked the internal Windows asyncio socket pair used by TestClient; this was a validation-harness failure, not evidence of a financial API regression.
+- Corrected harness, same four modules: exit 0, **78 passed in 1.46s**, no failures or skips. Tests cover mocked bearer/owner routing, financial CRUD responses, storage-error/secret-safe diagnostics, JWT validation, and static migration/grant/default contracts. They do not prove live database ACLs, durable PostgREST persistence, new-user trigger execution, browser behavior or production readiness.
+- No live integration modules, frontend tests, browser checks, authenticated local HTTP calls, or production requests were run. Automated tests used only mocked upstream data, synthetic JWT fixtures and temporary synthetic SQLite rows; no real financial data was used. No SQL or Supabase CLI commands were run against a database.
+
+### Remaining risks and next action
+
+- Production dashboard, transaction and budget behavior remains pending after the schema/category repair; deployed revision, environment alignment, CORS, service reachability and PostgREST metadata have not been inspected live. Other existing accounts may still require separately reviewed category initialization.
+- Source limitations relevant to smoke-test interpretation: dashboard budget spending currently sums all returned expense transactions matching a category, without filtering by the budget's date range. Multiple budget periods for the same category are flattened in `config.budgets`; `budgetItems` retains individual rows. Persistence smoke tests should not be mistaken for validation of period-specific financial calculations.
+- Single recommended next action: have the operator perform the read-only authenticated production dashboard load and hard-refresh check with the repaired account, recording HTTP status and sanitized diagnostics if it fails, before attempting production writes.
+- Only this development log was appended during this task. Existing uncommitted application, test, documentation and migration-review work was preserved. No migration, hosted write, SQL execution, environment/configuration/deployment change, deploy, commit, push, reset or Git history rewrite was performed.
+
 
 ## 2026-10-21 - Safe local commit review (nothing staged or committed)
 

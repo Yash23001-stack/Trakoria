@@ -1,14 +1,9 @@
 
 ```
-ExpenseTracker
-├─ .pytest_cache
-│  ├─ CACHEDIR.TAG
-│  ├─ README.md
-│  └─ v
-│     └─ cache
-│        └─ nodeids
+Trakoria
 ├─ backend
 │  ├─ api.py
+│  ├─ auth.py
 │  ├─ bot.py
 │  ├─ config.json
 │  ├─ config.py
@@ -17,10 +12,17 @@ ExpenseTracker
 │  ├─ parser.py
 │  ├─ postgres
 │  │  ├─ connection.py
+│  │  ├─ financial.py
 │  │  └─ __init__.py
+│  ├─ requirements-test.txt
+│  ├─ requirements.txt
 │  ├─ schemas.py
 │  ├─ tests
 │  │  ├─ conftest.py
+│  │  ├─ test_auth_jwt.py
+│  │  ├─ test_deployment_config.py
+│  │  ├─ test_secure_financial_api.py
+│  │  ├─ test_secure_financial_local_integration.py
 │  │  ├─ test_supabase_foundation.py
 │  │  ├─ test_supabase_rls_integration.py
 │  │  ├─ test_transactions_api.py
@@ -42,7 +44,8 @@ ExpenseTracker
 │  ├─ postcss.config.js
 │  ├─ public
 │  │  ├─ favicon.svg
-│  │  └─ icons.svg
+│  │  ├─ icons.svg
+│  │  └─ _redirects
 │  ├─ src
 │  │  ├─ App.css
 │  │  ├─ App.tsx
@@ -56,7 +59,6 @@ ExpenseTracker
 │  │  │  └─ useAuth.ts
 │  │  ├─ components
 │  │  │  ├─ activity
-│  │  │  │  ├─ BotStatus.tsx
 │  │  │  │  ├─ DataOperations.tsx
 │  │  │  │  ├─ download.ts
 │  │  │  │  └─ LiveFeed.tsx
@@ -64,12 +66,16 @@ ExpenseTracker
 │  │  │  ├─ AddTransactionPanel.tsx
 │  │  │  ├─ AiInsights.tsx
 │  │  │  ├─ auth
+│  │  │  │  ├─ AccountBoard.tsx
 │  │  │  │  └─ AuthPanel.tsx
+│  │  │  ├─ BudgetManager.tsx
 │  │  │  ├─ CalendarView.tsx
 │  │  │  ├─ ChartsGrid.tsx
 │  │  │  ├─ Header.tsx
 │  │  │  ├─ LedgerStream.tsx
-│  │  │  └─ MetricsGrid.tsx
+│  │  │  ├─ MetricsGrid.tsx
+│  │  │  └─ ui
+│  │  │     └─ FilterDropdown.tsx
 │  │  ├─ hooks
 │  │  │  └─ useTransactions.ts
 │  │  ├─ index.css
@@ -78,7 +84,8 @@ ExpenseTracker
 │  │  ├─ main.tsx
 │  │  ├─ pages
 │  │  │  ├─ AuthCallbackPage.tsx
-│  │  │  └─ DashboardPage.tsx
+│  │  │  ├─ DashboardPage.tsx
+│  │  │  └─ PasswordRecoveryPage.tsx
 │  │  ├─ services
 │  │  │  ├─ api.ts
 │  │  │  └─ supabase.ts
@@ -88,17 +95,24 @@ ExpenseTracker
 │  │  │  └─ transaction.ts
 │  │  ├─ utils
 │  │  │  ├─ currency.ts
-│  │  │  └─ date.ts
+│  │  │  ├─ date.ts
+│  │  │  └─ password.ts
 │  │  ├─ vite-env.d.ts
 │  │  └─ __tests__
 │  │     ├─ auth
 │  │     │  └─ AuthProvider.test.tsx
 │  │     ├─ components
+│  │     │  ├─ AccountBoard.test.tsx
 │  │     │  ├─ AddTransactionPanel.test.tsx
-│  │     │  └─ AuthPanel.test.tsx
+│  │     │  ├─ AuthPanel.test.tsx
+│  │     │  ├─ BudgetManager.test.tsx
+│  │     │  └─ DataOperations.test.tsx
 │  │     ├─ pages
-│  │     │  └─ AuthCallbackPage.test.tsx
+│  │     │  ├─ AuthCallbackPage.test.tsx
+│  │     │  ├─ DashboardPage.test.tsx
+│  │     │  └─ PasswordRecoveryPage.test.tsx
 │  │     └─ services
+│  │        ├─ api.test.ts
 │  │        └─ supabase.test.ts
 │  ├─ tsconfig.json
 │  └─ vite.config.js

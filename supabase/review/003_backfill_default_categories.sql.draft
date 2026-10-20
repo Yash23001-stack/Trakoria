@@ -1,0 +1,36 @@
+-- UNEXECUTED DRAFT. Not in migrations/ and not a runnable *.sql migration.
+-- Separate approval required after reviewing preview_default_categories.sql.
+-- Scope: ALL auth.users visible to postgres at statement time, without account
+-- status/provider/activity filtering. Do not promote until that scope and volume
+-- are approved. Large volumes need a separately reviewed batching plan.
+-- Existing matching categories, including user-defined rows with is_default=false,
+-- are preserved. There is no exact automatic post-commit rollback manifest.
+-- If promoted later: run as postgres after 002, through the pinned runner.
+
+with expected(name, type) as (
+  values
+    ('Salary', 'income'),
+    ('Bonus', 'income'),
+    ('Extra Income', 'income'),
+    ('Other', 'income'),
+    ('Food', 'expense'),
+    ('Drink', 'expense'),
+    ('Petrol', 'expense'),
+    ('Travel', 'expense'),
+    ('Shopping', 'expense'),
+    ('Bills', 'expense'),
+    ('Rent', 'expense'),
+    ('Entertainment', 'expense'),
+    ('Health', 'expense'),
+    ('Other', 'expense')
+)
+insert into public.categories (user_id, name, type, is_default)
+select u.id, e.name, e.type, true
+from auth.users u
+cross join expected e
+where not exists (
+  select 1 from public.categories c
+  where c.user_id = u.id and c.type = e.type
+    and lower(c.name) = lower(e.name)
+)
+on conflict (user_id, type, (lower(name))) do nothing;
